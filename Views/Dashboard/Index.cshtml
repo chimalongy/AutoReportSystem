@@ -1,0 +1,156 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["ActivePage"] = "Dashboard";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+@{
+    var firstName = User.FindFirst("firstName")?.Value ?? "";
+    var lastName = User.FindFirst("lastName")?.Value ?? "";
+    var fullName = $"{firstName} {lastName}".Trim();
+    var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    var userDept = User.FindFirst("department")?.Value ?? "";
+}
+
+<style>
+    @@keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { opacity: 0; animation: fadeUp 0.45s ease forwards; }
+    .fade-up-1 { animation-delay: 0.05s; }
+    .fade-up-2 { animation-delay: 0.15s; }
+    .fade-up-3 { animation-delay: 0.25s; }
+    .fade-up-4 { animation-delay: 0.35s; }
+</style>
+
+@* ── Welcome header ── *@
+<div class="mb-8 fade-up fade-up-1">
+    <h1 class="text-text-primary text-2xl font-semibold mb-1">Welcome, @fullName</h1>
+    <p class="text-text-muted text-sm">You are signed in as <span class="font-medium text-text-secondary">@userRole</span>@(!string.IsNullOrEmpty(userDept) ? $" in {userDept}" : "").</p>
+</div>
+
+@* ── Quick access cards ── *@
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+
+    @* Users card ── only for Admin/Super Admin *@
+    @if (userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) ||
+         userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+    {
+        <a href="/Dashboard/Settings/Users"
+           class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm
+                  hover:border-blue-300 hover:shadow-md transition-all fade-up fade-up-2">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">User Management</h3>
+                    <p class="text-text-muted text-xs">Create and manage users</p>
+                </div>
+            </div>
+            <span class="text-xs text-blue-600 font-medium">Manage Users &rarr;</span>
+        </a>
+
+        <a href="/Dashboard/Settings/AuditLogs"
+           class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm
+                  hover:border-blue-300 hover:shadow-md transition-all fade-up fade-up-3">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">Audit Logs</h3>
+                    <p class="text-text-muted text-xs">View system activity</p>
+                </div>
+            </div>
+            <span class="text-xs text-blue-600 font-medium">View Logs &rarr;</span>
+        </a>
+
+        <a href="/Dashboard/Databases"
+           class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm
+                  hover:border-blue-300 hover:shadow-md transition-all fade-up fade-up-4">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">Database Connections</h3>
+                    <p class="text-text-muted text-xs">Manage external databases</p>
+                </div>
+            </div>
+            <span class="text-xs text-blue-600 font-medium">Manage Databases &rarr;</span>
+        </a>
+    }
+
+    @* Account card ── for all users *@
+    <div class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm fade-up fade-up-4">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-text-primary text-sm font-semibold">My Account</h3>
+                <p class="text-text-muted text-xs">Your profile details</p>
+            </div>
+        </div>
+        <div class="text-xs text-text-secondary space-y-1 pt-1 border-t border-border mt-2">
+            <div class="flex justify-between">
+                <span class="text-text-muted">Name</span>
+                <span class="font-medium">@fullName</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Email</span>
+                <span class="font-medium">@User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Role</span>
+                <span class="font-medium">@userRole</span>
+            </div>
+            @if (!string.IsNullOrEmpty(userDept))
+            {
+                <div class="flex justify-between">
+                    <span class="text-text-muted">Department</span>
+                    <span class="font-medium">@userDept</span>
+                </div>
+            }
+        </div>
+    </div>
+
+</div>
+
+@* ── Info banner for Support users ── *@
+@if (userRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+{
+    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 fade-up fade-up-4">
+        <div class="flex items-start gap-3">
+            <svg class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <div>
+                <h4 class="text-blue-800 text-sm font-medium mb-0.5">Support Access</h4>
+                <p class="text-blue-600 text-xs">You have read-only access to the dashboard. Contact an administrator if you need elevated permissions.</p>
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — ARS Portal</title>
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+</head>
+<body class="bg-surface min-h-screen font-sans pb-10">
+
+    @{
+        var firstName = User.FindFirst("firstName")?.Value ?? "";
+        var lastName = User.FindFirst("lastName")?.Value ?? "";
+        var fullName = $"{firstName} {lastName}".Trim();
+        var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+        var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+        var initials = $"{(firstName.Length > 0 ? firstName[0] : '?')}{(lastName.Length > 0 ? lastName[0] : '?')}".ToUpper();
+        var activePage = ViewData["ActivePage"]?.ToString() ?? "";
+    }
+
+    @* ── Header ── *@
+    <header class="bg-surface-card border-b border-border px-6 py-3 flex items-center justify-between shadow-sm sticky top-0 z-40">
+
+        @* Left — logo + app name *@
+        <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center">
+                <span class="text-white text-xs font-bold">A</span>
+            </div>
+            <span class="text-text-primary text-sm font-semibold tracking-wide">ARS Portal</span>
+        </div>
+
+        @* Right — nav + user info + sign out *@
+        <div class="flex items-center gap-4">
+
+            @* Navigation — visible to Admin/Super Admin only *@
+            @if (userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) ||
+                 userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                <nav class="hidden md:flex items-center gap-1 mr-4">
+                    <a href="/Dashboard/Index"
+                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                        @(activePage == "Dashboard" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        Dashboard
+                    </a>
+                    <a href="/Dashboard/Settings/Users"
+                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                        @(activePage == "Users" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        Users
+                    </a>
+                    <a href="/Dashboard/Settings/AuditLogs"
+                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                        @(activePage == "AuditLogs" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        Audit Logs
+                    </a>
+                    <a href="/Dashboard/Databases"
+                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                        @(activePage == "Databases" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        Databases
+                    </a>
+                    <a href="/Dashboard/Reports"
+                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                        @(activePage == "Reports" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        Reports
+                    </a>
+                </nav>
+            }
+
+            @* Divider *@
+            <div class="w-px h-5 bg-border hidden sm:block"></div>
+
+            @* Avatar + name *@
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                    <span class="text-white text-xs font-semibold">@initials</span>
+                </div>
+                <div class="hidden sm:flex flex-col leading-tight">
+                    <span class="text-text-primary text-xs font-semibold">@fullName</span>
+                    <span class="text-text-muted text-xs">@userEmail</span>
+                </div>
+                @if (!string.IsNullOrEmpty(userRole))
+                {
+                    <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-full
+                        text-xs font-medium bg-blue-100 text-blue-600">
+                        @userRole
+                    </span>
+                }
+            </div>
+
+            @* Divider *@
+            <div class="w-px h-5 bg-border hidden sm:block"></div>
+
+            @* Sign out *@
+            <a asp-controller="Auth" asp-action="Logout"
+                   class="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors whitespace-nowrap">
+                Sign out
+            </a>
+        </div>
+
+    </header>
+
+    @* ── Page content ── *@
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        @RenderBody()
+    </main>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

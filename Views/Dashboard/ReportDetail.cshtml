@@ -1,0 +1,824 @@
+@model ARS.Models.Report
+@{
+    ViewData["Title"] = Model.Name;
+    ViewData["ActivePage"] = "Reports";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+
+    var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    var isSuperAdmin = role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
+
+    var statusClass = Model.Status switch
+    {
+        "active" => "bg-emerald-50 text-emerald-600 border-emerald-200",
+        "inactive" => "bg-red-50 text-red-600 border-red-200",
+        "running" => "bg-blue-50 text-blue-600 border-blue-200",
+        "error" => "bg-amber-50 text-amber-600 border-amber-200",
+        _ => "bg-slate-50 text-slate-600 border-slate-200"
+    };
+}
+
+<style>
+    @@keyframes fadeUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { opacity: 0; animation: fadeUp 0.4s ease forwards; }
+    .fade-up-1 { animation-delay: 0.05s; }
+    .fade-up-2 { animation-delay: 0.12s; }
+    .fade-up-3 { animation-delay: 0.2s; }
+
+    /* Accordion styles */
+    .accordion-item {
+        border: 1px solid var(--color-border, #e2e8f0);
+        border-radius: 0.875rem;
+        background: var(--color-surface-card, #fff);
+        overflow: hidden;
+        transition: box-shadow 0.2s ease;
+    }
+    .accordion-item:hover {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .accordion-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s ease;
+    }
+    .accordion-header:hover {
+        background: var(--color-surface, #f8fafc);
+    }
+    .accordion-header.active {
+        background: var(--color-surface, #f8fafc);
+    }
+    .accordion-icon {
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        color: var(--color-text-muted);
+    }
+    .accordion-header.active .accordion-icon {
+        transform: rotate(180deg);
+    }
+    .accordion-body {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .accordion-body.open {
+        grid-template-rows: 1fr;
+    }
+    .accordion-inner {
+        overflow: hidden;
+        padding: 0 1.25rem;
+    }
+    .accordion-body.open .accordion-inner {
+        padding: 0 1.25rem 1.25rem;
+    }
+
+    .query-box {
+        background: #0f172a;
+        color: #e2e8f0;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        font-size: 0.8rem;
+        line-height: 1.6;
+        padding: 1rem;
+        border-radius: 0.625rem;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+    .info-item {
+        padding: 0.625rem 0.875rem;
+        background: var(--color-surface, #f8fafc);
+        border-radius: 0.625rem;
+        border: 1px solid var(--color-border, #f1f5f9);
+    }
+    .info-label {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+    }
+    .info-value {
+        font-size: 0.8125rem;
+        color: var(--color-text-primary);
+        font-weight: 500;
+        word-break: break-word;
+    }
+
+    .meta-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        padding: 0.25rem 0.625rem;
+        border-radius: 9999px;
+        border: 1px solid;
+    }
+
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.7s linear infinite; }
+
+    .copy-toast {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        background: #1e293b;
+        color: #fff;
+        padding: 0.625rem 1rem;
+        border-radius: 0.625rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: all 0.25s ease;
+        pointer-events: none;
+        z-index: 100;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .copy-toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Execution status badges */
+    .exec-badge-running { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
+    .exec-badge-completed { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+    .exec-badge-failed { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+
+    /* Delivery item styles */
+    .delivery-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background: var(--color-surface);
+        border-radius: 0.5rem;
+        border: 1px solid var(--color-border);
+        font-size: 0.75rem;
+    }
+    .delivery-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .delivery-status-sent { background: #22c55e; }
+    .delivery-status-failed { background: #ef4444; }
+    .delivery-status-pending { background: #f59e0b; }
+</style>
+
+@* -- Breadcrumb -- *@
+<div class="flex items-center gap-2 mb-5 fade-up fade-up-1">
+    <a href="/Dashboard/Reports" 
+       class="text-text-muted hover:text-text-primary text-sm flex items-center gap-1 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Reports
+    </a>
+    <span class="text-text-muted text-sm">/</span>
+    <span class="text-text-primary text-sm font-medium truncate max-w-[240px]">@Model.Name</span>
+</div>
+
+@* -- Hero Header Card -- *@
+<div class="bg-surface-card border border-border rounded-2xl p-5 mb-6 fade-up fade-up-1">
+    <div class="flex items-start justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-text-primary text-xl font-semibold">@Model.Name</h1>
+                <div class="flex items-center gap-2 mt-1.5">
+                    <span class="meta-badge @statusClass">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                        @(Model.Status ?? "active")
+                    </span>
+                    <span class="text-text-muted text-xs">@Model.ExecutionType · @Model.OutputFormat.ToUpper()</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <a href="/Dashboard/Reports" 
+               class="px-3.5 py-2 text-sm text-text-secondary border border-border rounded-xl hover:bg-surface transition-colors">
+                Back
+            </a>
+            <button onclick="downloadReport(@Model.Id)"
+                    class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                Download
+            </button>
+        </div>
+    </div>
+
+    @* Quick meta row *@
+    <div class="flex items-center gap-6 mt-4 pt-4 border-t border-border text-xs text-text-muted">
+        @if (Model.LastRunDate.HasValue)
+        {
+            <div class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Last run: @Model.LastRunDate.Value.ToString("dd MMM yyyy, HH:mm")
+            </div>
+        }
+        @if (Model.NextRunDate.HasValue)
+        {
+            <div class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Next run: @Model.NextRunDate.Value.ToString("dd MMM yyyy, HH:mm")
+            </div>
+        }
+        <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 2a10 10 0 0 0-10 10c0 5.523 4.477 10 10 10s10-4.477 10-10A10 10 0 0 0 12 2zm0 16v-4m0-4h.01"/>
+            </svg>
+            Created: @Model.CreatedAt.ToString("dd MMM yyyy")
+        </div>
+    </div>
+</div>
+
+@* -- Accordion Sections -- *@
+<div class="space-y-3 fade-up fade-up-2">
+
+    @* ── Section 1: SQL Query ── *@
+    <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">SQL Query</h3>
+                    <p class="text-text-muted text-xs">Report database query</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="event.stopPropagation(); copyQuery()" 
+                        class="text-xs text-blue-600 hover:text-blue-700 font-medium px-2.5 py-1 rounded-lg hover:bg-blue-50 transition-colors">
+                    Copy
+                </button>
+                <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </div>
+        </div>
+        <div class="accordion-body open">
+            <div class="accordion-inner">
+                <pre class="query-box" id="queryText">@Model.Query</pre>
+            </div>
+        </div>
+    </div>
+
+    @* ── Section 2: Basic Information ── *@
+    <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">Basic Information</h3>
+                    <p class="text-text-muted text-xs">Name, format, and file details</p>
+                </div>
+            </div>
+            <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </div>
+        <div class="accordion-body">
+            <div class="accordion-inner">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Report Name</div>
+                        <div class="info-value">@Model.Name</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Output Format</div>
+                        <div class="info-value uppercase">@Model.OutputFormat</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Output File</div>
+                        <div class="info-value font-mono text-xs">@Model.OutputFileName</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Created</div>
+                        <div class="info-value">@Model.CreatedAt.ToString("dd MMM yyyy, HH:mm")</div>
+                    </div>
+                    @if (Model.UpdatedAt.HasValue)
+                    {
+                        <div class="info-item">
+                            <div class="info-label">Updated</div>
+                            <div class="info-value">@Model.UpdatedAt.Value.ToString("dd MMM yyyy, HH:mm")</div>
+                        </div>
+                    }
+                    <div class="info-item">
+                        <div class="info-label">Execution Type</div>
+                        <div class="info-value capitalize">@Model.ExecutionType</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Section 3: Database Connection ── *@
+    <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">Database Connection</h3>
+                    <p class="text-text-muted text-xs">Target database configuration</p>
+                </div>
+            </div>
+            <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </div>
+        <div class="accordion-body">
+            <div class="accordion-inner">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Database Name</div>
+                        <div class="info-value">@(Model.DbConnectionConfig?.DatabaseName ?? "Unknown")</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Database Type</div>
+                        <div class="info-value">@(Model.DbConnectionConfig?.DatabaseType ?? "Unknown")</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Host</div>
+                        <div class="info-value">@(Model.DbConnectionConfig?.Host ?? "Unknown")</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Port</div>
+                        <div class="info-value">@(Model.DbConnectionConfig?.Port.ToString() ?? "—")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Section 4: Schedule Configuration ── *@
+    <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">Schedule Configuration</h3>
+                    <p class="text-text-muted text-xs" id="scheduleSummary">Loading...</p>
+                </div>
+            </div>
+            <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </div>
+        <div class="accordion-body">
+            <div class="accordion-inner">
+                <div class="info-grid" id="scheduleGrid">
+                    <div class="info-item">
+                        <div class="info-label">Execution Type</div>
+                        <div class="info-value capitalize">@Model.ExecutionType</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Frequency</div>
+                        <div class="info-value" id="scheduleFreqLabel">—</div>
+                    </div>
+                    @if (Model.ExecutionType == "single" && Model.SingleRunTiming == "scheduled" && Model.SingleRunDateTime.HasValue)
+                    {
+                        <div class="info-item">
+                            <div class="info-label">Scheduled For</div>
+                            <div class="info-value">@Model.SingleRunDateTime.Value.ToString("dd MMM yyyy, HH:mm")</div>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.ScheduleTime))
+                    {
+                        <div class="info-item">
+                            <div class="info-label">Time of Day</div>
+                            <div class="info-value">@Model.ScheduleTime</div>
+                        </div>
+                    }
+                    @if (Model.ScheduleDayOfMonth.HasValue)
+                    {
+                        <div class="info-item">
+                            <div class="info-label">Day of Month</div>
+                            <div class="info-value">@Model.ScheduleDayOfMonth</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Section 5: Distribution Configuration ── *@
+    <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">Distribution</h3>
+                    <p class="text-text-muted text-xs">Email and file delivery settings</p>
+                </div>
+            </div>
+            <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </div>
+        <div class="accordion-body">
+            <div class="accordion-inner">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Email Distribution</div>
+                        <div class="info-value">@(Model.EnableEmailDistribution ? "Enabled" : "Disabled")</div>
+                    </div>
+                    @if (Model.EnableEmailDistribution)
+                    {
+                        <div class="info-item">
+                            <div class="info-label">To Recipients</div>
+                            <div class="info-value text-xs">@(Model.EmailToRecipients ?? "—")</div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.EmailCcRecipients))
+                        {
+                            <div class="info-item">
+                                <div class="info-label">CC Recipients</div>
+                                <div class="info-value text-xs">@Model.EmailCcRecipients</div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.EmailBccRecipients))
+                        {
+                            <div class="info-item">
+                                <div class="info-label">BCC Recipients</div>
+                                <div class="info-value text-xs">@Model.EmailBccRecipients</div>
+                            </div>
+                        }
+                        <div class="info-item">
+                            <div class="info-label">Email Subject</div>
+                            <div class="info-value text-xs">@(Model.EmailSubject ?? "—")</div>
+                        </div>
+                    }
+                    <div class="info-item">
+                        <div class="info-label">File Save</div>
+                        <div class="info-value">@(Model.EnableFileSave ? "Enabled" : "Disabled")</div>
+                    </div>
+                    @if (Model.EnableFileSave)
+                    {
+                        <div class="info-item">
+                            <div class="info-label">Save Path</div>
+                            <div class="info-value font-mono text-xs">@(Model.FileSavePath ?? "—")</div>
+                        </div>
+                    }
+                </div>
+
+                @if (Model.DistributionDestinations?.Any() == true)
+                {
+                    <div class="mt-4">
+                        <div class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Additional Destinations</div>
+                        <div class="space-y-2">
+                            @foreach (var dest in Model.DistributionDestinations.Where(d => d.IsActive))
+                            {
+                                <div class="flex items-center gap-2 p-2.5 bg-surface rounded-lg border border-border">
+                                    @if (dest.DestinationType == "email")
+                                    {
+                                        <span class="dest-type-badge dest-type-email">Email</span>
+                                        <span class="text-xs text-text-secondary truncate">@dest.EmailTo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="dest-type-badge dest-type-file">File</span>
+                                        <span class="text-xs text-text-secondary font-mono truncate">@dest.FilePath</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ── Section 6: Execution History (from executions table) ── *@
+    <div class="accordion-item fade-up fade-up-3">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M12 20v-6M6 20V10M18 20V4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">Execution History</h3>
+                    <p class="text-text-muted text-xs">Past runs and delivery results</p>
+                </div>
+            </div>
+            <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </div>
+        <div class="accordion-body">
+            <div class="accordion-inner">
+                <div id="historyArea" class="text-center py-6 text-text-muted text-sm">
+                    <svg class="w-5 h-5 mx-auto mb-2 spinner text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    <span class="text-xs">Loading history...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@* -- Copy Toast -- *@
+<div id="copyToast" class="copy-toast">Query copied to clipboard</div>
+
+@section Scripts {
+
+<script>
+    var reportId = @Model.Id;
+    var reportData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
+        Model.ExecutionType,
+        Model.SingleRunTiming,
+        Model.SingleRunDateTime,
+        Model.ScheduleFrequency,
+        Model.ScheduleDaysOfWeek,
+        Model.ScheduleDayOfMonth,
+        Model.ScheduleCustomDates,
+        Model.ScheduleCustomRecurring,
+        ScheduleTime = Model.ScheduleTime
+    }));
+
+    // ── Accordion Toggle ──
+    function toggleAccordion(header) {
+        var body = header.nextElementSibling;
+        var isOpen = body.classList.contains('open');
+        header.classList.toggle('active', !isOpen);
+        body.classList.toggle('open', !isOpen);
+    }
+
+    // ── Schedule Label Logic ──
+    function getScheduleLabel(r) {
+        if (r.ExecutionType === 'single') {
+            if (r.SingleRunTiming === 'immediately') return 'Run Once (Immediate)';
+            if (r.SingleRunTiming === 'scheduled' && r.SingleRunDateTime) {
+                return 'Run Once: ' + new Date(r.SingleRunDateTime).toLocaleString('en-GB', {
+                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                });
+            }
+            return 'Single Run';
+        }
+        if (r.ExecutionType === 'scheduled') {
+            var freq = r.ScheduleFrequency;
+            if (freq === 'daily') {
+                return 'Daily' + (r.ScheduleTime ? ' at ' + r.ScheduleTime.substring(0, 5) : '');
+            }
+            if (freq === 'weekly') {
+                try {
+                    var days = r.ScheduleDaysOfWeek ? JSON.parse(r.ScheduleDaysOfWeek) : [];
+                    return 'Weekly' + (days.length ? ' (' + days.join(', ') + ')' : '');
+                } catch (e) { return 'Weekly'; }
+            }
+            if (freq === 'monthly') return 'Monthly (Day ' + r.ScheduleDayOfMonth + ')';
+            if (freq === 'custom_dates') {
+                try {
+                    var dates = r.ScheduleCustomDates ? JSON.parse(r.ScheduleCustomDates) : [];
+                    return dates.length + ' custom date' + (dates.length !== 1 ? 's' : '');
+                } catch (e) { return 'Custom Dates'; }
+            }
+            if (freq === 'custom_recurring') {
+                try {
+                    var rec = r.ScheduleCustomRecurring ? JSON.parse(r.ScheduleCustomRecurring) : [];
+                    return rec.length + ' scheduled run' + (rec.length !== 1 ? 's' : '');
+                } catch (e) { return 'Custom Recurring'; }
+            }
+            return 'Scheduled';
+        }
+        return '—';
+    }
+
+    document.getElementById('scheduleSummary').textContent = getScheduleLabel(reportData);
+    document.getElementById('scheduleFreqLabel').textContent = getScheduleLabel(reportData);
+
+    // ── Copy Query ──
+    function copyQuery() {
+        var text = document.getElementById('queryText').textContent;
+        navigator.clipboard.writeText(text).then(function () {
+            var toast = document.getElementById('copyToast');
+            toast.classList.add('show');
+            setTimeout(function () { toast.classList.remove('show'); }, 2000);
+        });
+    }
+
+    // ── Download ──
+    function downloadReport(id) {
+        window.open('/Dashboard/Reports/Download/' + id, '_blank');
+    }
+
+    // ── Execution Status Helpers ──
+    function getExecStatusClass(status) {
+        if (status === 'completed') return 'exec-badge-completed';
+        if (status === 'failed') return 'exec-badge-failed';
+        return 'exec-badge-running';
+    }
+
+    function getDeliveryStatusDot(status) {
+        if (status === 'sent' || status === 'saved') return 'delivery-status-sent';
+        if (status === 'failed') return 'delivery-status-failed';
+        return 'delivery-status-pending';
+    }
+
+    function formatDuration(start, end) {
+        if (!end) return '—';
+        var diff = new Date(end) - new Date(start);
+        var mins = Math.floor(diff / 60000);
+        var secs = Math.floor((diff % 60000) / 1000);
+        if (mins > 0) return mins + 'm ' + secs + 's';
+        return secs + 's';
+    }
+
+    // ── Build Execution History Row ──
+    function buildExecutionRow(exec) {
+        var startDate = new Date(exec.startTime).toLocaleString('en-GB');
+        var statusClass = getExecStatusClass(exec.executionStatus);
+        var duration = formatDuration(exec.startTime, exec.endTime);
+        var rows = exec.rowCount != null ? exec.rowCount.toLocaleString() : '—';
+
+        // Build delivery summary
+        var emailCount = exec.emailsSent ? exec.emailsSent.length : 0;
+        var fileCount = exec.filesSent ? exec.filesSent.length : 0;
+        var emailSuccess = exec.emailsSent ? exec.emailsSent.filter(e => e.status === 'sent').length : 0;
+        var fileSuccess = exec.filesSent ? exec.filesSent.filter(f => f.status === 'saved').length : 0;
+
+        var deliveryHtml = '';
+        if (emailCount > 0 || fileCount > 0) {
+            deliveryHtml = '<div class="flex gap-2 mt-2">';
+            if (emailCount > 0) {
+                deliveryHtml += '<span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">'
+                    + '<svg class="w-3 h-3 inline mr-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
+                    + emailSuccess + '/' + emailCount + ' emails</span>';
+            }
+            if (fileCount > 0) {
+                deliveryHtml += '<span class="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-100">'
+                    + '<svg class="w-3 h-3 inline mr-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+                    + fileSuccess + '/' + fileCount + ' files</span>';
+            }
+            deliveryHtml += '</div>';
+        }
+
+        // Build delivery details (emails + files)
+        var detailsHtml = '';
+        if (exec.emailsSent && exec.emailsSent.length > 0) {
+            detailsHtml += '<div class="mt-2 space-y-1">';
+            detailsHtml += '<div class="text-[10px] font-semibold text-text-muted uppercase tracking-wide">Emails</div>';
+            exec.emailsSent.forEach(function(email) {
+                detailsHtml += '<div class="delivery-item">'
+                    + '<span class="delivery-status-dot ' + getDeliveryStatusDot(email.status) + '"></span>'
+                    + '<span class="text-text-secondary truncate flex-1">' + escHtml(email.email) + '</span>'
+                    + '<span class="text-text-muted text-[10px] uppercase">' + email.status + '</span>'
+                    + (email.errorMessage ? '<span class="text-red-500 text-[10px]" title="' + escHtml(email.errorMessage) + '">⚠</span>' : '')
+                    + '</div>';
+            });
+            detailsHtml += '</div>';
+        }
+        if (exec.filesSent && exec.filesSent.length > 0) {
+            detailsHtml += '<div class="mt-2 space-y-1">';
+            detailsHtml += '<div class="text-[10px] font-semibold text-text-muted uppercase tracking-wide">Files</div>';
+            exec.filesSent.forEach(function(file) {
+                detailsHtml += '<div class="delivery-item">'
+                    + '<span class="delivery-status-dot ' + getDeliveryStatusDot(file.status) + '"></span>'
+                    + '<span class="text-text-secondary truncate flex-1 font-mono">' + escHtml(file.path) + '</span>'
+                    + '<span class="text-text-muted text-[10px] uppercase">' + file.status + '</span>'
+                    + (file.errorMessage ? '<span class="text-red-500 text-[10px]" title="' + escHtml(file.errorMessage) + '">⚠</span>' : '')
+                    + '</div>';
+            });
+            detailsHtml += '</div>';
+        }
+
+        // Result download link
+        var actionHtml = '—';
+        if (exec.executionResultPath) {
+            actionHtml = '<a href="' + escHtml(exec.executionResultPath) + '" target="_blank" class="text-blue-600 hover:text-blue-700 text-xs font-medium">Download</a>';
+        }
+        if (exec.executionLogsPath) {
+            actionHtml += ' <a href="' + escHtml(exec.executionLogsPath) + '" target="_blank" class="text-amber-600 hover:text-amber-700 text-xs font-medium ml-2">Logs</a>';
+        }
+
+        // Error message
+        var errorHtml = '';
+        if (exec.errorMessage) {
+            errorHtml = '<div class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">'
+                + '<span class="font-semibold">Error:</span> ' + escHtml(exec.errorMessage)
+                + '</div>';
+        }
+
+        return '<tr class="border-b border-border last:border-0">'
+            + '<td class="py-3 align-top">'
+            + '<div class="text-text-primary text-xs font-medium">' + startDate + '</div>'
+            + '<div class="text-text-muted text-[10px] mt-0.5">Duration: ' + duration + '</div>'
+            + '</td>'
+            + '<td class="py-3 align-top">'
+            + '<span class="text-xs px-2 py-0.5 rounded-full font-medium ' + statusClass + '">' + exec.executionStatus + '</span>'
+            + '</td>'
+            + '<td class="py-3 align-top text-text-secondary text-xs">' + rows + '</td>'
+            + '<td class="py-3 align-top">'
+            + deliveryHtml
+            + '</td>'
+            + '<td class="py-3 align-top text-right">' + actionHtml + '</td>'
+            + '</tr>'
+            + '<tr class="border-b border-border last:border-0">'
+            + '<td colspan="5" class="pb-3">'
+            + detailsHtml
+            + errorHtml
+            + '</td>'
+            + '</tr>';
+    }
+
+    function escHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── Load Execution History from executions table ──
+    async function loadHistory() {
+        try {
+            var res = await fetch('/Dashboard/Reports/Executions/' + reportId);
+            if (!res.ok) throw new Error('Request failed');
+            var executions = await res.json();
+
+            var container = document.getElementById('historyArea');
+
+            if (executions.length === 0) {
+                container.innerHTML = '<div class="flex flex-col items-center gap-2 py-4">'
+                    + '<svg class="w-8 h-8 text-text-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">'
+                    + '<path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/>'
+                    + '</svg>'
+                    + '<p class="text-text-muted text-xs">No execution history yet.</p>'
+                    + '</div>';
+                return;
+            }
+
+            var rows = '';
+            for (var i = 0; i < executions.length; i++) {
+                rows += buildExecutionRow(executions[i]);
+            }
+
+            container.innerHTML = '<table class="w-full text-sm">'
+                + '<thead>'
+                + '<tr class="border-b border-border text-left">'
+                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide">Started</th>'
+                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide">Status</th>'
+                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide">Rows</th>'
+                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide">Delivery</th>'
+                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide text-right">Actions</th>'
+                + '</tr>'
+                + '</thead>'
+                + '<tbody>' + rows + '</tbody>'
+                + '</table>';
+
+        } catch (err) {
+            document.getElementById('historyArea').innerHTML =
+                '<p class="text-text-muted text-xs py-4">Failed to load execution history.</p>';
+        }
+    }
+
+    loadHistory();
+</script>
+}

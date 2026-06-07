@@ -1,0 +1,95 @@
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In — Automated Report System</title>
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+    <style>
+        @@keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @@keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        .fade-up { opacity: 0; animation: fadeUp 0.45s ease forwards; }
+        .fade-up-1 { animation-delay: 0.05s; }
+        .fade-up-2 { animation-delay: 0.15s; }
+        .fade-up-3 { animation-delay: 0.25s; }
+    </style>
+</head>
+<body class="bg-surface min-h-screen flex items-center justify-center px-4 py-10">
+
+    <div class="w-full max-w-sm">
+        @* ── Logo ── *@
+        <div class="flex items-center justify-center gap-2 mb-8 fade-up fade-up-1">
+            <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
+                <span class="text-white text-sm font-bold">A</span>
+            </div>
+            <span class="text-text-primary text-lg font-semibold tracking-wide">Auto Reporting System</span>
+        </div>
+
+        @* ── Success message from password update ── *@
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="mb-4 px-4 py-3 rounded-xl text-sm border bg-green-50 text-green-700 border-green-200 flex items-center gap-2 fade-up fade-up-1">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                @TempData["SuccessMessage"]
+            </div>
+        }
+
+        @* ── Card ── *@
+        <div class="bg-surface-card border border-border rounded-2xl shadow-sm p-6 fade-up fade-up-2">
+            <h1 class="text-text-primary text-base font-semibold mb-1">Welcome back</h1>
+            <p class="text-text-muted text-xs mb-5">Sign in to your account to continue.</p>
+
+            <form asp-action="Login" asp-controller="Auth" method="post" autocomplete="off">
+                @Html.AntiForgeryToken()
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="mb-4 px-3 py-2 rounded-xl text-xs border bg-red-50 text-red-700 border-red-200">
+                        @Html.ValidationSummary(false, "", new { @class = "list-none" })
+                    </div>
+                }
+
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-text-secondary mb-1.5">Email Address</label>
+                    <input name="email" type="email" placeholder="you@company.com" required
+                           class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                  text-text-primary placeholder-text-muted focus:outline-none
+                                  focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors" />
+                </div>
+
+                <div class="mb-5">
+                    <label class="block text-xs font-medium text-text-secondary mb-1.5">Password</label>
+                    <input name="password" type="password" placeholder="Enter your password" required
+                           class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                  text-text-primary placeholder-text-muted focus:outline-none
+                                  focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors" />
+                </div>
+
+                <button type="submit"
+                        class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
+                               rounded-xl transition-colors shadow-sm">
+                    Sign In
+                </button>
+            </form>
+        </div>
+
+        @* ── Footer ── *@
+        <p class="text-center text-text-muted text-xs mt-6 fade-up fade-up-3">
+            ARS &copy; @DateTime.UtcNow.Year
+        </p>
+    </div>
+
+</body>
+</html>
