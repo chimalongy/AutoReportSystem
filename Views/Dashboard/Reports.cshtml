@@ -1,11 +1,11 @@
 @{
     var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
-    if (!role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) &&
-        !role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
-    {
-        Context.Response.Redirect("/Dashboard/Index");
-        return;
-    }
+    // if (!role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) &&
+    //     !role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+    // {
+    //     Context.Response.Redirect("/Dashboard/Index");
+    //     return;
+    // }
 
     var isSuperAdmin = role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
 }

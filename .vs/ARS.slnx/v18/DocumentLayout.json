@@ -9,6 +9,54 @@
     {
       "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\controllers\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:controllers\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\views\\auth\\login.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:views\\auth\\login.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\classess\\utils\\emailsender.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:classess\\utils\\emailsender.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\jobs\\reportexecutionjob.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:jobs\\reportexecutionjob.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\merchantgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:merchantgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\views\\dashboard\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:views\\dashboard\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\views\\dashboard\\reports.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:views\\dashboard\\reports.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\views\\dashboard\\databases.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:views\\dashboard\\databases.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\views\\shared\\_dashboardlayout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:views\\shared\\_dashboardlayout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\views\\dashboard\\settings\\auditlogs.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:views\\dashboard\\settings\\auditlogs.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,11 +66,87 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 9,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Login.cshtml",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Auth\\Login.cshtml",
+              "RelativeDocumentMoniker": "Views\\Auth\\Login.cshtml",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Auth\\Login.cshtml",
+              "RelativeToolTip": "Views\\Auth\\Login.cshtml",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-06-08T10:13:42.051Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ReportExecutionJob.cs",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Jobs\\ReportExecutionJob.cs",
+              "RelativeDocumentMoniker": "Jobs\\ReportExecutionJob.cs",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Jobs\\ReportExecutionJob.cs",
+              "RelativeToolTip": "Jobs\\ReportExecutionJob.cs",
+              "ViewState": "AgIAACEAAAAAAAAAAAAowDIAAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-08T12:49:15.52Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "Reports.cshtml",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\Reports.cshtml",
+              "RelativeDocumentMoniker": "Views\\Dashboard\\Reports.cshtml",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\Reports.cshtml",
+              "RelativeToolTip": "Views\\Dashboard\\Reports.cshtml",
+              "ViewState": "AgIAAJoIAAAAAAAAAAAYwMUIAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-06-08T10:46:08.153Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "Databases.cshtml",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\Databases.cshtml",
+              "RelativeDocumentMoniker": "Views\\Dashboard\\Databases.cshtml",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\Databases.cshtml",
+              "RelativeToolTip": "Views\\Dashboard\\Databases.cshtml",
+              "ViewState": "AgIAAFAAAAAAAAAAAIAwwFwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-06-08T09:14:03.156Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "EmailSender.cs",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Classess\\Utils\\EmailSender.cs",
+              "RelativeDocumentMoniker": "Classess\\Utils\\EmailSender.cs",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Classess\\Utils\\EmailSender.cs",
+              "RelativeToolTip": "Classess\\Utils\\EmailSender.cs",
+              "ViewState": "AgIAABEBAAAAAAAAAAAnwCcBAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-08T09:01:34.862Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\Index.cshtml",
+              "RelativeDocumentMoniker": "Views\\Dashboard\\Index.cshtml",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\Index.cshtml",
+              "RelativeToolTip": "Views\\Dashboard\\Index.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAN0AAAASAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-06-08T06:40:01.757Z"
             },
             {
               "$type": "Document",
@@ -32,9 +156,22 @@
               "RelativeDocumentMoniker": "Controllers\\DashboardController.cs",
               "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Controllers\\DashboardController.cs",
               "RelativeToolTip": "Controllers\\DashboardController.cs",
-              "ViewState": "AgIAANgEAAAAAAAAAAAAwC8FAAAJAAAAAAAAAA==",
+              "ViewState": "AgIAADQFAAAAAAAAAAAAAEEFAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-06-06T10:38:21.815Z",
+              "WhenOpened": "2026-06-08T06:39:10.621Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "Merchantgenerator.cs",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Merchantgenerator.cs",
+              "RelativeDocumentMoniker": "Merchantgenerator.cs",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Merchantgenerator.cs",
+              "RelativeToolTip": "Merchantgenerator.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAALAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-09T07:40:30.814Z",
               "EditorCaption": ""
             },
             {
@@ -45,10 +182,72 @@
               "RelativeDocumentMoniker": "Views\\Dashboard\\ReportDetail.cshtml",
               "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\ReportDetail.cshtml",
               "RelativeToolTip": "Views\\Dashboard\\ReportDetail.cshtml",
-              "ViewState": "AgIAAA8DAAAAAAAAAAAwwB8DAAA5AAAAAAAAAA==",
+              "ViewState": "AgIAACgEAAAAAAAAAAAYwEkEAABGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-06-06T10:32:24.744Z",
+              "WhenOpened": "2026-06-08T10:53:29.68Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Program.cs",
+              "RelativeDocumentMoniker": "Program.cs",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Program.cs",
+              "RelativeToolTip": "Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAqAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-09T07:41:35.533Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\appsettings.json",
+              "RelativeDocumentMoniker": "appsettings.json",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\appsettings.json",
+              "RelativeToolTip": "appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-06-09T07:42:50.598Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "AuthController.cs",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Controllers\\AuthController.cs",
+              "RelativeDocumentMoniker": "Controllers\\AuthController.cs",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Controllers\\AuthController.cs",
+              "RelativeToolTip": "Controllers\\AuthController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAHwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-08T10:18:59.209Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "_DashboardLayout.cshtml",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Shared\\_DashboardLayout.cshtml",
+              "RelativeDocumentMoniker": "Views\\Shared\\_DashboardLayout.cshtml",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Shared\\_DashboardLayout.cshtml",
+              "RelativeToolTip": "Views\\Shared\\_DashboardLayout.cshtml",
+              "ViewState": "AgIAANoAAAAAAAAAAAAwwAMBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-06-08T10:46:18.346Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "AuditLogs.cshtml",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\Settings\\AuditLogs.cshtml",
+              "RelativeDocumentMoniker": "Views\\Dashboard\\Settings\\AuditLogs.cshtml",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Views\\Dashboard\\Settings\\AuditLogs.cshtml",
+              "RelativeToolTip": "Views\\Dashboard\\Settings\\AuditLogs.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-06-08T10:46:03.057Z"
             }
           ]
         }

@@ -6,10 +6,10 @@
 
 @{
     var firstName = User.FindFirst("firstName")?.Value ?? "";
-    var lastName = User.FindFirst("lastName")?.Value ?? "";
-    var fullName = $"{firstName} {lastName}".Trim();
-    var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
-    var userDept = User.FindFirst("department")?.Value ?? "";
+    var lastName  = User.FindFirst("lastName")?.Value ?? "";
+    var fullName  = $"{firstName} {lastName}".Trim();
+    var userRole  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    var userDept  = User.FindFirst("department")?.Value ?? "";
 }
 
 <style>
@@ -17,130 +17,189 @@
         from { opacity: 0; transform: translateY(16px); }
         to   { opacity: 1; transform: translateY(0); }
     }
-    .fade-up { opacity: 0; animation: fadeUp 0.45s ease forwards; }
+    .fade-up   { opacity: 0; animation: fadeUp 0.45s ease forwards; }
     .fade-up-1 { animation-delay: 0.05s; }
     .fade-up-2 { animation-delay: 0.15s; }
     .fade-up-3 { animation-delay: 0.25s; }
     .fade-up-4 { animation-delay: 0.35s; }
-</style>
+    .fade-up-5 { animation-delay: 0.45s; }
 
-@* ── Welcome header ── *@
-<div class="mb-8 fade-up fade-up-1">
-    <h1 class="text-text-primary text-2xl font-semibold mb-1">Welcome, @fullName</h1>
-    <p class="text-text-muted text-sm">You are signed in as <span class="font-medium text-text-secondary">@userRole</span>@(!string.IsNullOrEmpty(userDept) ? $" in {userDept}" : "").</p>
-</div>
-
-@* ── Quick access cards ── *@
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-
-    @* Users card ── only for Admin/Super Admin *@
-    @if (userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) ||
-         userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
-    {
-        <a href="/Dashboard/Settings/Users"
-           class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm
-                  hover:border-blue-300 hover:shadow-md transition-all fade-up fade-up-2">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-text-primary text-sm font-semibold">User Management</h3>
-                    <p class="text-text-muted text-xs">Create and manage users</p>
-                </div>
-            </div>
-            <span class="text-xs text-blue-600 font-medium">Manage Users &rarr;</span>
-        </a>
-
-        <a href="/Dashboard/Settings/AuditLogs"
-           class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm
-                  hover:border-blue-300 hover:shadow-md transition-all fade-up fade-up-3">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                        <polyline points="10 9 9 9 8 9"/>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-text-primary text-sm font-semibold">Audit Logs</h3>
-                    <p class="text-text-muted text-xs">View system activity</p>
-                </div>
-            </div>
-            <span class="text-xs text-blue-600 font-medium">View Logs &rarr;</span>
-        </a>
-
-        <a href="/Dashboard/Databases"
-           class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm
-                  hover:border-blue-300 hover:shadow-md transition-all fade-up fade-up-4">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-text-primary text-sm font-semibold">Database Connections</h3>
-                    <p class="text-text-muted text-xs">Manage external databases</p>
-                </div>
-            </div>
-            <span class="text-xs text-blue-600 font-medium">Manage Databases &rarr;</span>
-        </a>
+    /* ── Stat cards ──────────────────────────────────────────────────────── */
+    .report-stat-card {
+        background: var(--surface-card, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 1rem;
+        padding: 1.1rem 1.25rem;
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        user-select: none;
+    }
+    .report-stat-card:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 2px 8px rgba(59,130,246,.08);
+    }
+    .report-stat-card.active {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,.12);
     }
 
-    @* Account card ── for all users *@
-    <div class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm fade-up fade-up-4">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
-                <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="text-text-primary text-sm font-semibold">My Account</h3>
-                <p class="text-text-muted text-xs">Your profile details</p>
+    /* ── Badge pills ─────────────────────────────────────────────────────── */
+    .rs-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+    .rs-badge-scheduled { background:#dbeafe; color:#1e40af; }
+    .rs-badge-running   { background:#fef3c7; color:#92400e; }
+    .rs-badge-completed { background:#dcfce7; color:#166534; }
+    .rs-badge-failed    { background:#fee2e2; color:#991b1b; }
+    .rs-badge-inactive  { background:#f3f4f6; color:#374151; }
+
+    /* ── Report list ─────────────────────────────────────────────────────── */
+    .report-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border, #f3f4f6);
+        font-size: 13px;
+    }
+    .report-row:last-child { border-bottom: none; }
+    .report-row-name {
+        flex: 1;
+        min-width: 0;
+        font-weight: 500;
+        color: var(--text-primary, #111827);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .report-row-meta {
+        color: var(--text-muted, #6b7280);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .dot-scheduled { background: #3b82f6; }
+    .dot-running   { background: #f59e0b; }
+    .dot-completed { background: #22c55e; }
+    .dot-failed    { background: #ef4444; }
+    .dot-inactive  { background: #9ca3af; }
+
+    /* ── Spinner ─────────────────────────────────────────────────────────── */
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+        display: inline-block;
+        width: 18px; height: 18px;
+        border: 2px solid #e5e7eb;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+    }
+</style>
+
+@* ── Welcome header ────────────────────────────────────────────────────────── *@
+<div class="mb-8 fade-up fade-up-1">
+    <h1 class="text-text-primary text-2xl font-semibold mb-1">Welcome, @fullName</h1>
+    <p class="text-text-muted text-sm">
+        You are signed in as
+        <span class="font-medium text-text-secondary">@userRole</span>@(!string.IsNullOrEmpty(userDept) ? $" in {userDept}" : "").
+    </p>
+</div>
+
+
+
+@* ── Reports overview (Admin / Super Admin only) ───────────────────────────── *@
+
+    <div class="fade-up fade-up-5">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-text-primary text-base font-semibold">Reports Overview</h2>
+            <a href="/Dashboard/Reports" class="text-xs text-blue-600 font-medium hover:underline">
+                View all reports &rarr;
+            </a>
+        </div>
+
+        @* ── Stat cards ── *@
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5" id="report-stat-grid">
+            @* Populated by JS *@
+            <div class="report-stat-card col-span-2 md:col-span-5 text-center text-sm text-text-muted py-4">
+                <span class="spinner"></span>&nbsp; Loading reports…
             </div>
         </div>
-        <div class="text-xs text-text-secondary space-y-1 pt-1 border-t border-border mt-2">
-            <div class="flex justify-between">
-                <span class="text-text-muted">Name</span>
-                <span class="font-medium">@fullName</span>
+
+        @* ── Report list ── *@
+        <div class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-text-primary text-sm font-semibold" id="report-list-title">All reports</p>
+                <button onclick="refreshReports()"
+                        class="text-xs text-text-muted hover:text-text-primary transition-colors flex items-center gap-1">
+                    <svg id="refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <polyline points="23 4 23 10 17 10"/>
+                        <polyline points="1 20 1 14 7 14"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    Refresh
+                </button>
             </div>
-            <div class="flex justify-between">
-                <span class="text-text-muted">Email</span>
-                <span class="font-medium">@User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</span>
+            <div id="report-list-body">
+                @* Populated by JS *@
             </div>
-            <div class="flex justify-between">
-                <span class="text-text-muted">Role</span>
-                <span class="font-medium">@userRole</span>
-            </div>
-            @if (!string.IsNullOrEmpty(userDept))
-            {
-                <div class="flex justify-between">
-                    <span class="text-text-muted">Department</span>
-                    <span class="font-medium">@userDept</span>
-                </div>
-            }
         </div>
     </div>
 
+
+@* ── My Account card (all users) ─────────────────────────────────────────── *@
+<div class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm fade-up fade-up-4 mt-6">
+    <div class="flex items-center gap-3 mb-3">
+        <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+            <svg class="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+            </svg>
+        </div>
+        <div>
+            <h3 class="text-text-primary text-sm font-semibold">My Account</h3>
+            <p class="text-text-muted text-xs">Your profile details</p>
+        </div>
+    </div>
+    <div class="text-xs text-text-secondary space-y-1 pt-1 border-t border-border mt-2">
+        <div class="flex justify-between">
+            <span class="text-text-muted">Name</span>
+            <span class="font-medium">@fullName</span>
+        </div>
+        <div class="flex justify-between">
+            <span class="text-text-muted">Email</span>
+            <span class="font-medium">@User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</span>
+        </div>
+        <div class="flex justify-between">
+            <span class="text-text-muted">Role</span>
+            <span class="font-medium">@userRole</span>
+        </div>
+        @if (!string.IsNullOrEmpty(userDept))
+        {
+            <div class="flex justify-between">
+                <span class="text-text-muted">Department</span>
+                <span class="font-medium">@userDept</span>
+            </div>
+        }
+    </div>
 </div>
 
-@* ── Info banner for Support users ── *@
+@* ── Info banner (Support users only) ────────────────────────────────────── *@
 @if (userRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
 {
-    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 fade-up fade-up-4">
+    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 fade-up fade-up-4 mt-6">
         <div class="flex items-start gap-3">
             <svg class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10"/>
@@ -153,4 +212,143 @@
             </div>
         </div>
     </div>
+}
+
+@* ── Reports JS (Admin / Super Admin only) ───────────────────────────────── *@
+@if (userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) ||
+     userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)||userRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+{
+    <script>
+    (function () {
+
+        // ── Derive a report's "display status" from its fields ──────────────
+        function reportStatus(r) {
+            const execType = (r.executionType  || '').toLowerCase();
+            const timing   = (r.singleRunTiming || '').toLowerCase();
+            const status   = (r.status          || '').toLowerCase();
+            const lastRun  = r.lastRunDate;
+            const nextRun  = r.nextRunDate;
+            const hasErr   = !!r.lastErrorMessage;
+
+            if (hasErr)   return 'failed';
+            if (status === 'inactive') return 'inactive';
+
+            if (execType === 'single') {
+                if (timing === 'immediately' && !lastRun) return 'running';
+                if (lastRun) return 'completed';
+                if (nextRun && new Date(nextRun) > new Date()) return 'scheduled';
+                return 'scheduled';
+            }
+
+            if (nextRun && new Date(nextRun) > new Date()) return 'scheduled';
+            if (lastRun) return 'completed';
+            return 'scheduled';
+        }
+
+        const LABEL = { all:'All', scheduled:'Scheduled', running:'Running', completed:'Completed', failed:'Failed', inactive:'Inactive' };
+        const BADGE = { scheduled:'rs-badge-scheduled', running:'rs-badge-running', completed:'rs-badge-completed', failed:'rs-badge-failed', inactive:'rs-badge-inactive' };
+        const DOT   = { scheduled:'dot-scheduled',      running:'dot-running',      completed:'dot-completed',      failed:'dot-failed',      inactive:'dot-inactive' };
+
+        const STAT_CARDS = [
+            { key:'all',       icon:'<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>', label:'Total',     colorClass:'text-text-primary' },
+            { key:'scheduled', icon:'<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', label:'Scheduled', colorClass:'text-blue-600' },
+            { key:'running',   icon:'<svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>', label:'Running',   colorClass:'text-amber-600' },
+            { key:'completed', icon:'<svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', label:'Completed', colorClass:'text-green-600' },
+            { key:'failed',    icon:'<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>', label:'Failed',    colorClass:'text-red-600' },
+        ];
+
+        let allReports  = [];
+        let activeFilter = 'all';
+
+        function fmtDate(dt) {
+            if (!dt) return '—';
+            return new Date(dt).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        }
+
+        // ── Render stat cards ──────────────────────────────────────────────
+        function renderStats() {
+            const counts = { all: allReports.length, scheduled:0, running:0, completed:0, failed:0 };
+            allReports.forEach(r => {
+                const s = reportStatus(r);
+                if (counts[s] !== undefined) counts[s]++;
+            });
+
+            document.getElementById('report-stat-grid').innerHTML = STAT_CARDS.map(c => `
+                <div class="report-stat-card${activeFilter === c.key ? ' active' : ''}"
+                     onclick="window._rsSetFilter('${c.key}')" title="Filter by ${c.label}">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="${c.colorClass}">${c.icon}</span>
+                        <span class="text-xs text-text-muted">${c.label}</span>
+                    </div>
+                    <div class="text-2xl font-semibold ${c.colorClass}">${counts[c.key]}</div>
+                </div>
+            `).join('');
+        }
+
+        // ── Render report list ─────────────────────────────────────────────
+        function renderList() {
+            const filtered = activeFilter === 'all'
+                ? allReports
+                : allReports.filter(r => reportStatus(r) === activeFilter);
+
+            document.getElementById('report-list-title').textContent =
+                (activeFilter === 'all' ? 'All' : LABEL[activeFilter]) + ' reports';
+
+            const body = document.getElementById('report-list-body');
+            if (!filtered.length) {
+                body.innerHTML = '<p class="text-center text-text-muted text-sm py-6">No reports in this category.</p>';
+                return;
+            }
+
+            body.innerHTML = filtered.map(r => {
+                const s     = reportStatus(r);
+                const badge = BADGE[s] || '';
+                const dot   = DOT[s]   || '';
+                const next  = r.nextRunDate ? 'Next: ' + fmtDate(r.nextRunDate) : null;
+                const last  = r.lastRunDate ? 'Last: ' + fmtDate(r.lastRunDate) : null;
+                const meta  = next || last || (r.scheduleFrequency || r.executionType || '—');
+
+                return `<div class="report-row">
+                    <span class="status-dot ${dot}"></span>
+                    <span class="report-row-name" title="${r.name}">
+                        <a href="/Dashboard/Reports/${encodeURIComponent(r.name)}"
+                           class="hover:text-blue-600 transition-colors">${r.name}</a>
+                    </span>
+                    <span class="rs-badge ${badge}">${LABEL[s] || s}</span>
+                    <span class="report-row-meta">${meta}</span>
+                </div>`;
+            }).join('');
+        }
+
+        // ── Public filter setter (called from inline onclick) ──────────────
+        window._rsSetFilter = function (key) {
+            activeFilter = key;
+            renderStats();
+            renderList();
+        };
+
+        // ── Load / refresh ─────────────────────────────────────────────────
+        async function load(showSpinner) {
+            if (showSpinner) {
+                document.getElementById('report-stat-grid').innerHTML =
+                    '<div class="col-span-2 md:col-span-5 text-center text-sm text-text-muted py-4"><span class="spinner"></span>&nbsp; Loading…</div>';
+                document.getElementById('report-list-body').innerHTML = '';
+            }
+            try {
+                const res = await fetch('/Dashboard/Reports/GetAll', { credentials: 'include' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                allReports = await res.json();
+                renderStats();
+                renderList();
+            } catch (e) {
+                document.getElementById('report-stat-grid').innerHTML =
+                    `<div class="col-span-2 md:col-span-5 text-center text-sm text-red-500 py-4">Could not load reports: ${e.message}</div>`;
+            }
+        }
+
+        window.refreshReports = function () { load(true); };
+
+        load(true);
+    })();
+    </script>
 }

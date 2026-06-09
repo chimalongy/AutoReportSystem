@@ -1,15 +1,23 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.EntityFrameworkCore;
+using ARS;
+using ARS.Classess;
 using ARS.Classess.Utils;
 using ARS.Data;
-
-using Quartz;
 using ARS.Jobs;
 using ARS.Services;
-using ARS.Classess;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
+using Quartz;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+//var generator = new MerchantGenerator();
+
+//await generator.InsertMerchantsAsync(
+//    connectionString: "Host=localhost;Port=5432;Database=merchants_mock;Username=postgres;Password=1",
+//    totalRecords: 3_000_000,
+//    batchSize: 10_000       // optional, defaults to 10 000
+//);
 
 
 builder.Services.AddQuartz(q =>

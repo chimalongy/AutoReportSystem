@@ -9,11 +9,11 @@
 
     var statusClass = Model.Status switch
     {
-        "active" => "bg-emerald-50 text-emerald-600 border-emerald-200",
+        "active"   => "bg-emerald-50 text-emerald-600 border-emerald-200",
         "inactive" => "bg-red-50 text-red-600 border-red-200",
-        "running" => "bg-blue-50 text-blue-600 border-blue-200",
-        "error" => "bg-amber-50 text-amber-600 border-amber-200",
-        _ => "bg-slate-50 text-slate-600 border-slate-200"
+        "running"  => "bg-blue-50 text-blue-600 border-blue-200",
+        "error"    => "bg-amber-50 text-amber-600 border-amber-200",
+        _          => "bg-slate-50 text-slate-600 border-slate-200"
     };
 }
 
@@ -27,7 +27,7 @@
     .fade-up-2 { animation-delay: 0.12s; }
     .fade-up-3 { animation-delay: 0.2s; }
 
-    /* Accordion styles */
+    /* ── Accordion ── */
     .accordion-item {
         border: 1px solid var(--color-border, #e2e8f0);
         border-radius: 0.875rem;
@@ -47,35 +47,57 @@
         user-select: none;
         transition: background 0.15s ease;
     }
-    .accordion-header:hover {
-        background: var(--color-surface, #f8fafc);
-    }
-    .accordion-header.active {
-        background: var(--color-surface, #f8fafc);
-    }
+    .accordion-header:hover { background: var(--color-surface, #f8fafc); }
+    .accordion-header.active { background: var(--color-surface, #f8fafc); }
     .accordion-icon {
         transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         color: var(--color-text-muted);
+        flex-shrink: 0;
     }
-    .accordion-header.active .accordion-icon {
-        transform: rotate(180deg);
-    }
+    .accordion-header.active .accordion-icon { transform: rotate(180deg); }
     .accordion-body {
         display: grid;
         grid-template-rows: 0fr;
         transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .accordion-body.open {
-        grid-template-rows: 1fr;
-    }
-    .accordion-inner {
+    .accordion-body.open { grid-template-rows: 1fr; }
+    .accordion-inner { overflow: hidden; padding: 0 1.25rem; }
+    .accordion-body.open .accordion-inner { padding: 0 1.25rem 1.25rem; }
+
+    /* ── Execution nested accordions ── */
+    .exec-accordion {
+        border: 1px solid var(--color-border, #e2e8f0);
+        border-radius: 0.625rem;
+        background: var(--color-surface-card, #fff);
         overflow: hidden;
-        padding: 0 1.25rem;
     }
-    .accordion-body.open .accordion-inner {
-        padding: 0 1.25rem 1.25rem;
+    .exec-header {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 0.625rem 0.875rem;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s ease;
+    }
+    .exec-header:hover { background: var(--color-surface, #f8fafc); }
+    .exec-header.active { background: var(--color-surface, #f8fafc); }
+    .exec-header .accordion-icon { margin-left: auto; }
+    .exec-header.active .accordion-icon { transform: rotate(180deg); }
+
+    .exec-id-badge {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        background: var(--color-surface, #f8fafc);
+        border: 1px solid var(--color-border, #e2e8f0);
+        border-radius: 0.375rem;
+        padding: 0.125rem 0.5rem;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
+    /* ── Query box ── */
     .query-box {
         background: #0f172a;
         color: #e2e8f0;
@@ -89,6 +111,7 @@
         word-break: break-all;
     }
 
+    /* ── Info grid ── */
     .info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -115,6 +138,7 @@
         word-break: break-word;
     }
 
+    /* ── Meta badge (status pill in hero) ── */
     .meta-badge {
         display: inline-flex;
         align-items: center;
@@ -126,6 +150,33 @@
         border: 1px solid;
     }
 
+    /* ── Execution status badges ── */
+    .exec-badge-running   { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
+    .exec-badge-completed { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+    .exec-badge-failed    { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+
+    /* ── Delivery items ── */
+    .delivery-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background: var(--color-surface, #f8fafc);
+        border-radius: 0.5rem;
+        border: 1px solid var(--color-border, #e2e8f0);
+        font-size: 0.75rem;
+    }
+    .delivery-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .delivery-status-sent    { background: #22c55e; }
+    .delivery-status-failed  { background: #ef4444; }
+    .delivery-status-pending { background: #f59e0b; }
+
+    /* ── Misc ── */
     @@keyframes spin { to { transform: rotate(360deg); } }
     .spinner { animation: spin 0.7s linear infinite; }
 
@@ -146,41 +197,34 @@
         z-index: 100;
         box-shadow: 0 10px 25px rgba(0,0,0,0.15);
     }
-    .copy-toast.show {
+    .copy-toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Log Modal ── */
+    #logModal {
+        transition: opacity 0.2s ease;
+    }
+    #logModalPanel {
+        transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    #logModal.modal-visible {
         opacity: 1;
+        pointer-events: auto;
+    }
+    #logModal.modal-hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+    #logModal.modal-visible #logModalPanel {
         transform: translateY(0);
     }
-
-    /* Execution status badges */
-    .exec-badge-running { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
-    .exec-badge-completed { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
-    .exec-badge-failed { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
-
-    /* Delivery item styles */
-    .delivery-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 0.75rem;
-        background: var(--color-surface);
-        border-radius: 0.5rem;
-        border: 1px solid var(--color-border);
-        font-size: 0.75rem;
+    #logModal.modal-hidden #logModalPanel {
+        transform: translateY(8px);
     }
-    .delivery-status-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-    .delivery-status-sent { background: #22c55e; }
-    .delivery-status-failed { background: #ef4444; }
-    .delivery-status-pending { background: #f59e0b; }
 </style>
 
-@* -- Breadcrumb -- *@
+@* ── Breadcrumb ── *@
 <div class="flex items-center gap-2 mb-5 fade-up fade-up-1">
-    <a href="/Dashboard/Reports" 
+    <a href="/Dashboard/Reports"
        class="text-text-muted hover:text-text-primary text-sm flex items-center gap-1 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -191,15 +235,17 @@
     <span class="text-text-primary text-sm font-medium truncate max-w-[240px]">@Model.Name</span>
 </div>
 
-@* -- Hero Header Card -- *@
+@* ── Hero Header Card ── *@
 <div class="bg-surface-card border border-border rounded-2xl p-5 mb-6 fade-up fade-up-1">
     <div class="flex items-start justify-between gap-4">
         <div class="flex items-center gap-3.5">
             <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
                 <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10 9 9 9 8 9"/>
                 </svg>
             </div>
             <div>
@@ -214,22 +260,15 @@
             </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-            <a href="/Dashboard/Reports" 
+            <a href="/Dashboard/Reports"
                class="px-3.5 py-2 text-sm text-text-secondary border border-border rounded-xl hover:bg-surface transition-colors">
                 Back
             </a>
-            <button onclick="downloadReport(@Model.Id)"
-                    class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-                </svg>
-                Download
-            </button>
         </div>
     </div>
 
     @* Quick meta row *@
-    <div class="flex items-center gap-6 mt-4 pt-4 border-t border-border text-xs text-text-muted">
+    <div class="flex items-center gap-6 mt-4 pt-4 border-t border-border text-xs text-text-muted flex-wrap">
         @if (Model.LastRunDate.HasValue)
         {
             <div class="flex items-center gap-1.5">
@@ -243,7 +282,10 @@
         {
             <div class="flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
                 Next run: @Model.NextRunDate.Value.ToString("dd MMM yyyy, HH:mm")
             </div>
@@ -257,7 +299,7 @@
     </div>
 </div>
 
-@* -- Accordion Sections -- *@
+@* ── Accordion Sections ── *@
 <div class="space-y-3 fade-up fade-up-2">
 
     @* ── Section 1: SQL Query ── *@
@@ -275,7 +317,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="event.stopPropagation(); copyQuery()" 
+                <button onclick="event.stopPropagation(); copyQuery()"
                         class="text-xs text-blue-600 hover:text-blue-700 font-medium px-2.5 py-1 rounded-lg hover:bg-blue-50 transition-colors">
                     Copy
                 </button>
@@ -298,7 +340,9 @@
                 <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
                     <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
                     </svg>
                 </div>
                 <div>
@@ -351,7 +395,8 @@
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
                     <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
                         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
                     </svg>
                 </div>
@@ -534,7 +579,7 @@
         </div>
     </div>
 
-    @* ── Section 6: Execution History (from executions table) ── *@
+    @* ── Section 6: Execution History ── *@
     <div class="accordion-item fade-up fade-up-3">
         <div class="accordion-header" onclick="toggleAccordion(this)">
             <div class="flex items-center gap-3">
@@ -545,7 +590,7 @@
                 </div>
                 <div>
                     <h3 class="text-text-primary text-sm font-semibold">Execution History</h3>
-                    <p class="text-text-muted text-xs">Past runs and delivery results</p>
+                    <p class="text-text-muted text-xs" id="historySubtitle">Past runs and delivery results</p>
                 </div>
             </div>
             <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -566,13 +611,85 @@
 
 </div>
 
-@* -- Copy Toast -- *@
+@* ── Copy Toast ── *@
 <div id="copyToast" class="copy-toast">Query copied to clipboard</div>
 
-@section Scripts {
+@* ── Download Toast (used by execution result downloads) ── *@
+<div id="downloadToast" class="copy-toast">
+    <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        <span id="downloadToastMsg">Downloading…</span>
+    </div>
+</div>
 
+@* ── Log Viewer Modal ── *@
+<div id="logModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-hidden">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeLogModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col" id="logModalPanel">
+
+        @* Modal Header *@
+        <div class="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold" id="logModalTitle">Execution Logs</h3>
+                    <p class="text-text-muted text-xs" id="logModalSubtitle">Loading…</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="downloadCurrentLog()" id="logDownloadBtn"
+                        class="hidden px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-surface transition-colors text-text-secondary flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                    Download Log
+                </button>
+                <button onclick="closeLogModal()"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface transition-colors text-text-muted hover:text-text-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        @* Modal Body — scrollable log content *@
+        <div class="overflow-auto flex-1 p-4" id="logModalScroll">
+            <div id="logModalContent" class="text-center py-8 text-text-muted text-sm">
+                <svg class="w-5 h-5 mx-auto mb-2 spinner text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+                Loading logs…
+            </div>
+        </div>
+
+        @* Modal Footer *@
+        <div class="px-5 py-3 border-t border-border flex items-center justify-between flex-shrink-0">
+            <span class="text-xs text-text-muted" id="logModalFooter"></span>
+            <button onclick="scrollLogsToBottom()"
+                    class="text-xs text-text-muted hover:text-text-primary flex items-center gap-1.5 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+                Scroll to bottom
+            </button>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
 <script>
-    var reportId = @Model.Id;
+    var reportId   = @Model.Id;
     var reportData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
         Model.ExecutionType,
         Model.SingleRunTiming,
@@ -585,37 +702,42 @@
         ScheduleTime = Model.ScheduleTime
     }));
 
-    // ── Accordion Toggle ──
+    // ── Outer accordion toggle ──
     function toggleAccordion(header) {
-        var body = header.nextElementSibling;
+        var body   = header.nextElementSibling;
         var isOpen = body.classList.contains('open');
         header.classList.toggle('active', !isOpen);
         body.classList.toggle('open', !isOpen);
     }
 
-    // ── Schedule Label Logic ──
+    // ── Inner execution accordion toggle ──
+    function toggleExec(header) {
+        var body   = header.nextElementSibling;
+        var isOpen = body.classList.contains('open');
+        header.classList.toggle('active', !isOpen);
+        body.classList.toggle('open', !isOpen);
+    }
+
+    // ── Schedule label ──
     function getScheduleLabel(r) {
         if (r.ExecutionType === 'single') {
             if (r.SingleRunTiming === 'immediately') return 'Run Once (Immediate)';
-            if (r.SingleRunTiming === 'scheduled' && r.SingleRunDateTime) {
+            if (r.SingleRunTiming === 'scheduled' && r.SingleRunDateTime)
                 return 'Run Once: ' + new Date(r.SingleRunDateTime).toLocaleString('en-GB', {
                     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                 });
-            }
             return 'Single Run';
         }
         if (r.ExecutionType === 'scheduled') {
             var freq = r.ScheduleFrequency;
-            if (freq === 'daily') {
-                return 'Daily' + (r.ScheduleTime ? ' at ' + r.ScheduleTime.substring(0, 5) : '');
-            }
+            if (freq === 'daily')   return 'Daily' + (r.ScheduleTime ? ' at ' + r.ScheduleTime.substring(0, 5) : '');
             if (freq === 'weekly') {
                 try {
                     var days = r.ScheduleDaysOfWeek ? JSON.parse(r.ScheduleDaysOfWeek) : [];
                     return 'Weekly' + (days.length ? ' (' + days.join(', ') + ')' : '');
                 } catch (e) { return 'Weekly'; }
             }
-            if (freq === 'monthly') return 'Monthly (Day ' + r.ScheduleDayOfMonth + ')';
+            if (freq === 'monthly')          return 'Monthly (Day ' + r.ScheduleDayOfMonth + ')';
             if (freq === 'custom_dates') {
                 try {
                     var dates = r.ScheduleCustomDates ? JSON.parse(r.ScheduleCustomDates) : [];
@@ -633,10 +755,10 @@
         return '—';
     }
 
-    document.getElementById('scheduleSummary').textContent = getScheduleLabel(reportData);
+    document.getElementById('scheduleSummary').textContent  = getScheduleLabel(reportData);
     document.getElementById('scheduleFreqLabel').textContent = getScheduleLabel(reportData);
 
-    // ── Copy Query ──
+    // ── Copy query ──
     function copyQuery() {
         var text = document.getElementById('queryText').textContent;
         navigator.clipboard.writeText(text).then(function () {
@@ -646,22 +768,19 @@
         });
     }
 
-    // ── Download ──
-    function downloadReport(id) {
-        window.open('/Dashboard/Reports/Download/' + id, '_blank');
+    // ── Helpers ──
+    function escHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // ── Execution Status Helpers ──
-    function getExecStatusClass(status) {
-        if (status === 'completed') return 'exec-badge-completed';
-        if (status === 'failed') return 'exec-badge-failed';
-        return 'exec-badge-running';
-    }
-
-    function getDeliveryStatusDot(status) {
-        if (status === 'sent' || status === 'saved') return 'delivery-status-sent';
-        if (status === 'failed') return 'delivery-status-failed';
-        return 'delivery-status-pending';
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
     }
 
     function formatDuration(start, end) {
@@ -669,114 +788,146 @@
         var diff = new Date(end) - new Date(start);
         var mins = Math.floor(diff / 60000);
         var secs = Math.floor((diff % 60000) / 1000);
-        if (mins > 0) return mins + 'm ' + secs + 's';
-        return secs + 's';
+        return mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
     }
 
-    // ── Build Execution History Row ──
-    function buildExecutionRow(exec) {
-        var startDate = new Date(exec.startTime).toLocaleString('en-GB');
+    function dotClass(status) {
+        if (status === 'sent' || status === 'saved') return 'delivery-status-sent';
+        if (status === 'failed')                     return 'delivery-status-failed';
+        return 'delivery-status-pending';
+    }
+
+    function getExecStatusClass(status) {
+        if (status === 'completed') return 'exec-badge-completed';
+        if (status === 'failed')    return 'exec-badge-failed';
+        return 'exec-badge-running';
+    }
+
+    // ── Build delivery rows block (emails or files) ──
+    function buildDeliveryRows(items, isFile) {
+        if (!items || !items.length) return '';
+
+        var label   = isFile ? 'Files' : 'Emails';
+        var iconSvg = isFile
+            ? '<svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+            : '<svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>';
+
+        var rows = items.map(function (item) {
+            var target    = isFile ? escHtml(item.path) : escHtml(item.email);
+            var monoClass = isFile ? ' font-mono' : '';
+            var errHtml   = item.errorMessage
+                ? '<span class="text-red-500 text-[10px] ml-1 cursor-help" title="' + escHtml(item.errorMessage) + '">⚠</span>'
+                : '';
+            return '<div class="delivery-item">'
+                + '<span class="delivery-status-dot ' + dotClass(item.status) + '"></span>'
+                + '<span class="text-text-secondary truncate flex-1' + monoClass + '">' + target + '</span>'
+                + '<span class="text-text-muted text-[10px] uppercase ml-2">' + escHtml(item.status) + '</span>'
+                + errHtml
+                + '</div>';
+        }).join('');
+
+        return '<div class="mt-3">'
+            + '<div class="text-[10px] font-semibold text-text-muted uppercase tracking-wide mb-1.5">' + iconSvg + label + '</div>'
+            + '<div class="space-y-1">' + rows + '</div>'
+            + '</div>';
+    }
+
+    // ── Escape string for use in HTML onclick attributes ──
+    function escAttr(str) {
+        if (!str) return '';
+        return str
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '&quot;')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r');
+    }
+
+    // ── Build a single execution accordion ──
+    function buildExecAccordion(exec) {
         var statusClass = getExecStatusClass(exec.executionStatus);
-        var duration = formatDuration(exec.startTime, exec.endTime);
-        var rows = exec.rowCount != null ? exec.rowCount.toLocaleString() : '—';
+        var duration    = formatDuration(exec.startTime, exec.endTime);
 
-        // Build delivery summary
-        var emailCount = exec.emailsSent ? exec.emailsSent.length : 0;
-        var fileCount = exec.filesSent ? exec.filesSent.length : 0;
-        var emailSuccess = exec.emailsSent ? exec.emailsSent.filter(e => e.status === 'sent').length : 0;
-        var fileSuccess = exec.filesSent ? exec.filesSent.filter(f => f.status === 'saved').length : 0;
+        // Action buttons
+        var actionBtns = '';
 
-        var deliveryHtml = '';
-        if (emailCount > 0 || fileCount > 0) {
-            deliveryHtml = '<div class="flex gap-2 mt-2">';
-            if (emailCount > 0) {
-                deliveryHtml += '<span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">'
-                    + '<svg class="w-3 h-3 inline mr-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
-                    + emailSuccess + '/' + emailCount + ' emails</span>';
-            }
-            if (fileCount > 0) {
-                deliveryHtml += '<span class="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-100">'
-                    + '<svg class="w-3 h-3 inline mr-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-                    + fileSuccess + '/' + fileCount + ' files</span>';
-            }
-            deliveryHtml += '</div>';
-        }
-
-        // Build delivery details (emails + files)
-        var detailsHtml = '';
-        if (exec.emailsSent && exec.emailsSent.length > 0) {
-            detailsHtml += '<div class="mt-2 space-y-1">';
-            detailsHtml += '<div class="text-[10px] font-semibold text-text-muted uppercase tracking-wide">Emails</div>';
-            exec.emailsSent.forEach(function(email) {
-                detailsHtml += '<div class="delivery-item">'
-                    + '<span class="delivery-status-dot ' + getDeliveryStatusDot(email.status) + '"></span>'
-                    + '<span class="text-text-secondary truncate flex-1">' + escHtml(email.email) + '</span>'
-                    + '<span class="text-text-muted text-[10px] uppercase">' + email.status + '</span>'
-                    + (email.errorMessage ? '<span class="text-red-500 text-[10px]" title="' + escHtml(email.errorMessage) + '">⚠</span>' : '')
-                    + '</div>';
-            });
-            detailsHtml += '</div>';
-        }
-        if (exec.filesSent && exec.filesSent.length > 0) {
-            detailsHtml += '<div class="mt-2 space-y-1">';
-            detailsHtml += '<div class="text-[10px] font-semibold text-text-muted uppercase tracking-wide">Files</div>';
-            exec.filesSent.forEach(function(file) {
-                detailsHtml += '<div class="delivery-item">'
-                    + '<span class="delivery-status-dot ' + getDeliveryStatusDot(file.status) + '"></span>'
-                    + '<span class="text-text-secondary truncate flex-1 font-mono">' + escHtml(file.path) + '</span>'
-                    + '<span class="text-text-muted text-[10px] uppercase">' + file.status + '</span>'
-                    + (file.errorMessage ? '<span class="text-red-500 text-[10px]" title="' + escHtml(file.errorMessage) + '">⚠</span>' : '')
-                    + '</div>';
-            });
-            detailsHtml += '</div>';
-        }
-
-        // Result download link
-        var actionHtml = '—';
-        if (exec.executionResultPath) {
-            actionHtml = '<a href="' + escHtml(exec.executionResultPath) + '" target="_blank" class="text-blue-600 hover:text-blue-700 text-xs font-medium">Download</a>';
-        }
+        // Logs button → opens log viewer modal
         if (exec.executionLogsPath) {
-            actionHtml += ' <a href="' + escHtml(exec.executionLogsPath) + '" target="_blank" class="text-amber-600 hover:text-amber-700 text-xs font-medium ml-2">Logs</a>';
+            var safeLogPath = escAttr(exec.executionLogsPath);
+            actionBtns += '<button'
+                + ' onclick="event.stopPropagation(); showLogs(\'' + safeLogPath + '\', ' + exec.id + ')"'
+                + ' class="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors flex items-center gap-1">'
+                + '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
+                + '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
+                + '<polyline points="14 2 14 8 20 8"/>'
+                + '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'
+                + '</svg>Logs</button>';
         }
 
-        // Error message
-        var errorHtml = '';
+        // Download button → downloads the execution result file
+        if (exec.executionResultPath) {
+            var safeResultPath = escAttr(exec.executionResultPath);
+            actionBtns += '<button'
+                + ' onclick="event.stopPropagation(); downloadResultFile(\'' + safeResultPath + '\', ' + exec.id + ')"'
+                + ' class="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-1">'
+                + '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
+                + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'
+                + '</svg>Download</button>';
+        }
+
+        // Expanded body content
+        var bodyContent = '';
+
+        // Meta chips
+        bodyContent += '<div class="flex gap-2 flex-wrap">'
+            + '<div class="info-item" style="padding:0.375rem 0.75rem">'
+            + '<div class="info-label">Row Count</div>'
+            + '<div class="info-value">' + (exec.rowCount != null ? exec.rowCount.toLocaleString() : '—') + '</div>'
+            + '</div>'
+            + '<div class="info-item" style="padding:0.375rem 0.75rem">'
+            + '<div class="info-label">Duration</div>'
+            + '<div class="info-value">' + duration + '</div>'
+            + '</div>'
+            + '</div>';
+
+        bodyContent += buildDeliveryRows(exec.emailsSent, false);
+        bodyContent += buildDeliveryRows(exec.filesSent,  true);
+
         if (exec.errorMessage) {
-            errorHtml = '<div class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">'
+            bodyContent += '<div class="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">'
                 + '<span class="font-semibold">Error:</span> ' + escHtml(exec.errorMessage)
                 + '</div>';
         }
 
-        return '<tr class="border-b border-border last:border-0">'
-            + '<td class="py-3 align-top">'
-            + '<div class="text-text-primary text-xs font-medium">' + startDate + '</div>'
-            + '<div class="text-text-muted text-[10px] mt-0.5">Duration: ' + duration + '</div>'
-            + '</td>'
-            + '<td class="py-3 align-top">'
-            + '<span class="text-xs px-2 py-0.5 rounded-full font-medium ' + statusClass + '">' + exec.executionStatus + '</span>'
-            + '</td>'
-            + '<td class="py-3 align-top text-text-secondary text-xs">' + rows + '</td>'
-            + '<td class="py-3 align-top">'
-            + deliveryHtml
-            + '</td>'
-            + '<td class="py-3 align-top text-right">' + actionHtml + '</td>'
-            + '</tr>'
-            + '<tr class="border-b border-border last:border-0">'
-            + '<td colspan="5" class="pb-3">'
-            + detailsHtml
-            + errorHtml
-            + '</td>'
-            + '</tr>';
+        return '<div class="exec-accordion">'
+            + '<div class="exec-header" onclick="toggleExec(this)">'
+            + '<span class="exec-id-badge">#' + exec.id + '</span>'
+            + '<div class="flex items-center gap-4 flex-1 min-w-0">'
+            + '<div>'
+            + '<div class="text-[10px] text-text-muted uppercase tracking-wide">Started</div>'
+            + '<div class="text-xs font-medium text-text-primary whitespace-nowrap">' + fmtDate(exec.startTime) + '</div>'
+            + '</div>'
+            + '<div>'
+            + '<div class="text-[10px] text-text-muted uppercase tracking-wide">Ended</div>'
+            + '<div class="text-xs font-medium text-text-primary whitespace-nowrap">' + fmtDate(exec.endTime) + '</div>'
+            + '</div>'
+            + '</div>'
+            + '<div class="flex items-center gap-2 flex-shrink-0" onclick="event.stopPropagation()">'
+            + '<span class="text-[11px] font-medium px-2.5 py-0.5 rounded-full border ' + statusClass + '">'
+            + escHtml(exec.executionStatus)
+            + '</span>'
+            + actionBtns
+            + '</div>'
+            + '<svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">'
+            + '<path d="M6 9l6 6 6-6"/></svg>'
+            + '</div>'
+            + '<div class="accordion-body">'
+            + '<div class="accordion-inner"><div class="space-y-2">' + bodyContent + '</div></div>'
+            + '</div>'
+            + '</div>';
     }
 
-    function escHtml(str) {
-        return String(str || '')
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    // ── Load Execution History from executions table ──
+    // ── Load execution history ──
     async function loadHistory() {
         try {
             var res = await fetch('/Dashboard/Reports/Executions/' + reportId);
@@ -784,9 +935,11 @@
             var executions = await res.json();
 
             var container = document.getElementById('historyArea');
+            var subtitle  = document.getElementById('historySubtitle');
 
             if (executions.length === 0) {
-                container.innerHTML = '<div class="flex flex-col items-center gap-2 py-4">'
+                subtitle.textContent = 'No runs yet';
+                container.innerHTML  = '<div class="flex flex-col items-center gap-2 py-6">'
                     + '<svg class="w-8 h-8 text-text-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">'
                     + '<path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/>'
                     + '</svg>'
@@ -795,30 +948,159 @@
                 return;
             }
 
-            var rows = '';
-            for (var i = 0; i < executions.length; i++) {
-                rows += buildExecutionRow(executions[i]);
-            }
-
-            container.innerHTML = '<table class="w-full text-sm">'
-                + '<thead>'
-                + '<tr class="border-b border-border text-left">'
-                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide">Started</th>'
-                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide">Status</th>'
-                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide">Rows</th>'
-                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide">Delivery</th>'
-                + '<th class="pb-2.5 text-xs font-semibold text-text-muted uppercase tracking-wide text-right">Actions</th>'
-                + '</tr>'
-                + '</thead>'
-                + '<tbody>' + rows + '</tbody>'
-                + '</table>';
+            subtitle.textContent = executions.length + ' run' + (executions.length !== 1 ? 's' : '');
+            container.innerHTML  = '<div class="space-y-2">'
+                + executions.map(buildExecAccordion).join('')
+                + '</div>';
 
         } catch (err) {
             document.getElementById('historyArea').innerHTML =
-                '<p class="text-text-muted text-xs py-4">Failed to load execution history.</p>';
+                '<p class="text-text-muted text-xs py-4 text-center">Failed to load execution history.</p>';
         }
     }
 
     loadHistory();
+
+    // ════════════════════════════════════════════════════════════════
+    // LOG MODAL
+    // ════════════════════════════════════════════════════════════════
+
+    var _currentLogPath = null;
+
+    function showLogs(logPath, execId) {
+        if (!logPath) {
+            console.error('Log path is empty');
+            return;
+        }
+
+        _currentLogPath = logPath;
+
+        // Reset modal state
+        document.getElementById('logModalTitle').textContent    = 'Execution Logs — #' + execId;
+        document.getElementById('logModalSubtitle').textContent = 'Loading…';
+        document.getElementById('logModalFooter').textContent   = '';
+        document.getElementById('logDownloadBtn').classList.add('hidden');
+        document.getElementById('logModalContent').innerHTML    =
+            '<div class="text-center py-8 text-text-muted text-sm">'
+            + '<svg class="w-5 h-5 mx-auto mb-2 spinner text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
+            + '<path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Loading logs…</div>';
+
+        // Open modal
+        var modal = document.getElementById('logModal');
+        modal.classList.remove('modal-hidden');
+        modal.classList.add('modal-visible');
+        document.body.style.overflow = 'hidden';
+
+        // Fetch log content
+        fetch('/Dashboard/Reports/ExecutionLogs?path=' + encodeURIComponent(logPath))
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status + ' — log file may have been removed.');
+                return r.text();
+            })
+            .then(function (text) {
+                var lines = text.split('\n');
+                var lineCount = lines.filter(function (l) { return l.trim() !== ''; }).length;
+
+                document.getElementById('logModalSubtitle').textContent = lineCount + ' line' + (lineCount !== 1 ? 's' : '');
+                document.getElementById('logModalFooter').textContent   = logPath;
+                document.getElementById('logDownloadBtn').classList.remove('hidden');
+
+                // Syntax-colorize log lines by severity keyword
+                var colored = lines.map(function (line) {
+                    var safe = escHtml(line);
+                    if (!safe.trim()) return '<span class="text-slate-600"> </span>';
+                    if (/\b(ERROR|FAIL|FAILED|EXCEPTION|CRITICAL)\b/i.test(line))
+                        return '<span class="text-red-400">' + safe + '</span>';
+                    if (/\b(WARN|WARNING)\b/i.test(line))
+                        return '<span class="text-amber-400">' + safe + '</span>';
+                    if (/\b(SUCCESS|COMPLETED|DONE|FINISH|OK)\b/i.test(line))
+                        return '<span class="text-emerald-400">' + safe + '</span>';
+                    if (/\b(INFO|START|STARTING|RUNNING|BEGIN|INIT)\b/i.test(line))
+                        return '<span class="text-sky-400">' + safe + '</span>';
+                    if (/\b(DEBUG|TRACE|VERBOSE)\b/i.test(line))
+                        return '<span class="text-slate-500">' + safe + '</span>';
+                    return '<span class="text-slate-300">' + safe + '</span>';
+                }).join('\n');
+
+                document.getElementById('logModalContent').innerHTML =
+                    '<pre id="logPre" style="'
+                    + 'background:#0f172a;'
+                    + 'color:#e2e8f0;'
+                    + 'font-family:\'SF Mono\',Monaco,\'Cascadia Code\',\'Fira Code\',monospace;'
+                    + 'font-size:0.73rem;'
+                    + 'line-height:1.75;'
+                    + 'padding:1rem;'
+                    + 'border-radius:0.625rem;'
+                    + 'overflow-x:auto;'
+                    + 'white-space:pre-wrap;'
+                    + 'word-break:break-all;'
+                    + '">' + colored + '</pre>';
+            })
+            .catch(function (err) {
+                document.getElementById('logModalSubtitle').textContent = 'Error';
+                document.getElementById('logModalContent').innerHTML =
+                    '<div class="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">'
+                    + '<svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
+                    + '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
+                    + '</svg>'
+                    + '<span>' + escHtml(err.message) + '</span>'
+                    + '</div>';
+            });
+    }
+
+    function closeLogModal() {
+        var modal = document.getElementById('logModal');
+        modal.classList.remove('modal-visible');
+        modal.classList.add('modal-hidden');
+        document.body.style.overflow = '';
+        _currentLogPath = null;
+    }
+
+    // Downloads the log file itself (button inside the modal header)
+    function downloadCurrentLog() {
+        if (_currentLogPath) {
+            window.location.href = '/Dashboard/Reports/ExecutionLogs?path='
+                + encodeURIComponent(_currentLogPath) + '&download=true';
+        }
+    }
+
+    function scrollLogsToBottom() {
+        var scroll = document.getElementById('logModalScroll');
+        if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    }
+
+    // ── Per-execution result file download (Download button on each execution row) ──
+  function downloadResultFile(resultPath, execId) {
+    if (!execId) {
+        console.error('Execution ID is empty');
+        return;
+    }
+
+    var toast = document.getElementById('downloadToast');
+    var msg   = document.getElementById('downloadToastMsg');
+
+    msg.textContent = 'Starting download…';
+    toast.classList.add('show');
+
+    
+    var url = '/Dashboard/Reports/Executions/Download/' + execId;
+
+    var iframe = document.getElementById('downloadIframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'downloadIframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+    iframe.src = url;
+
+    msg.textContent = 'Download started!';
+    setTimeout(function () { toast.classList.remove('show'); }, 2500);
+}
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeLogModal();
+    });
 </script>
 }

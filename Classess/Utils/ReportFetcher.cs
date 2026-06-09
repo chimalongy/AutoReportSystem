@@ -65,7 +65,7 @@ namespace ARS.Classess.Utils
             string executionPath = Path.Combine(reportFolder, "executions");
             string executionResultPath = Path.Combine(executionPath, "results");
             string logPath = Path.Combine(executionPath, "Logs");
-            string logFileName = executionName + ".logs";
+            string logFileName = executionName;
 
             Directory.CreateDirectory(reportFolder);
             Directory.CreateDirectory(executionPath);
@@ -131,8 +131,8 @@ namespace ARS.Classess.Utils
                 // ═══════════════════════════════════════════════════════════════
                 if (report.EnableFileSave && !string.IsNullOrWhiteSpace(report.FileSavePath))
                 {
-                    Logger.LogToFile(logPath, logFileName, $"STEP 2: FILE SAVE");
-                    var fileRecord = await SaveToFileAsync(report, result.FilePath, executionResultPath, executionName);
+                    Logger.LogToFile(logPath, logFileName, $"STEP 2: SAVING TO FILES");
+                    var fileRecord = await SaveToFileAsync(report, result.FilePath, executionResultPath, executionName, logPath, logFileName);
                     filesSent.Add(fileRecord);
                     Logger.LogToFile(logPath, logFileName,
                         $"STEP 2 [COMPLETED]: Saved to {fileRecord.Path} — {fileRecord.Status}");
@@ -144,7 +144,7 @@ namespace ARS.Classess.Utils
                 if (report.EnableEmailDistribution)
                 {
                     Logger.LogToFile(logPath, logFileName, $"STEP 3: EMAIL DISTRIBUTION");
-                    var emailRecords = await DistributeByEmailAsync(report, result.FilePath, executionName);
+                    var emailRecords = await DistributeByEmailAsync(report, result.FilePath, executionName, logPath, logFileName);
                     emailsSent.AddRange(emailRecords);
                     Logger.LogToFile(logPath, logFileName,
                         $"STEP 3 [COMPLETED]: {emailRecords.Count(r => r.Status == "sent")}/{emailRecords.Count} emails sent");
@@ -160,12 +160,12 @@ namespace ARS.Classess.Utils
                     {
                         if (dest.DestinationType == "email")
                         {
-                            var emailRecs = await SendToDestinationEmailAsync(dest, result.FilePath, executionName);
+                            var emailRecs = await SendToDestinationEmailAsync(dest, result.FilePath, report.OutputFileName, logPath, logFileName);
                             emailsSent.AddRange(emailRecs);
                         }
                         else if (dest.DestinationType == "file")
                         {
-                            var fileRec = await SaveToDestinationFileAsync(dest, result.FilePath);
+                            var fileRec = await SaveToDestinationFileAsync(report, dest, result.FilePath, logPath, logFileName);
                             filesSent.Add(fileRec);
                         }
                     }
@@ -187,6 +187,10 @@ namespace ARS.Classess.Utils
                 // Update report metadata
                 report.LastRunDate = DateTime.UtcNow;
                 report.LastErrorMessage = null;
+                if (report.ExecutionType == "single")
+                {
+                    report.Status = "stopped";
+                }
 
                 Logger.LogToFile(logPath, logFileName,
                     $"EXECUTION {execution.Id} COMPLETED — {result.TotalRows:N0} rows");
@@ -218,35 +222,85 @@ namespace ARS.Classess.Utils
         // DISTRIBUTION HELPERS
         // ══════════════════════════════════════════════════════════════════════
 
-        private async Task<FileSentRecord> SaveToFileAsync(Report report, string sourceFilePath,
-            string executionResultPath, string executionName)
+        private async Task<FileSentRecord> SaveToFileAsync(
+      Report report, string sourceFilePath,
+      string executionResultPath, string executionName, string logPath, string logFileName)
         {
             var record = new FileSentRecord
             {
                 Id = 1,
-                Path = report.FileSavePath!,
+                Path = report.FileSavePath ?? "",
                 Status = "pending"
             };
 
+            string sourceExt = Path.GetExtension(sourceFilePath); // e.g. ".csv" or ".xlsx"
+            string dest_filename = Path.HasExtension(report.OutputFileName)
+                ? report.OutputFileName
+                : report.OutputFileName + sourceExt;
+
             try
             {
-                string destPath = Path.Combine(report.FileSavePath!, executionName + Path.GetExtension(sourceFilePath));
-                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                File.Copy(sourceFilePath, destPath, overwrite: true);
-                record.Path = destPath;
-                record.Status = "saved";
+               
+                string destPath = Path.Combine(
+                    report.FileSavePath!,
+                    dest_filename);
+                Logger.LogToFile(logPath, logFileName, $"SAVING FILE AT {destPath}");
+                string? destDir = Path.GetDirectoryName(destPath);
+                if (string.IsNullOrEmpty(destDir))
+                    throw new InvalidOperationException(
+                        $"Cannot resolve destination directory from path: {destPath}");
+
+                const int maxAttempts = 3;
+                for (int attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(destDir);
+
+                        await using var src = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 81920, useAsync: true);
+                        await using var dst = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
+                        await src.CopyToAsync(dst);
+
+                        record.Path = destPath;
+                        record.Status = "saved";
+                        break;
+                    }
+                    catch (IOException) when (attempt < maxAttempts)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(attempt * 2));
+                    }
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                record.Status = "failed";
+                record.ErrorMessage = $"Access denied to path '{report.FileSavePath}': {ex.Message}";
+                Logger.LogToFile(logPath, logFileName, $"Access denied to path '{report.FileSavePath}': {ex.Message}");
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                record.Status = "failed";
+                record.ErrorMessage = $"Path not found '{report.FileSavePath}': {ex.Message}";
+                Logger.LogToFile(logPath, logFileName, $"Path not found '{report.FileSavePath}': {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                record.Status = "failed";
+                record.ErrorMessage = $"I/O error after retries: {ex.Message}";
+                Logger.LogToFile(logPath, logFileName, $"I/O error after retries: {ex.Message}");
             }
             catch (Exception ex)
             {
                 record.Status = "failed";
                 record.ErrorMessage = ex.Message;
+                Logger.LogToFile(logPath, logFileName, ex.Message);
             }
 
             return record;
         }
 
         private async Task<List<EmailSentRecord>> DistributeByEmailAsync(Report report,
-            string attachmentPath, string executionName)
+            string attachmentPath, string executionName, string logPath, string logFileName)
         {
             var records = new List<EmailSentRecord>();
             var recipients = new List<string>();
@@ -254,12 +308,12 @@ namespace ARS.Classess.Utils
             if (!string.IsNullOrWhiteSpace(report.EmailToRecipients))
                 recipients.AddRange(report.EmailToRecipients.Split(',', StringSplitOptions.RemoveEmptyEntries));
 
-            // TODO: Replace with your actual email service
-            var emailService = new EmailService(); // Inject this via DI in production
+           
 
             int id = 1;
             foreach (var email in recipients.Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)))
             {
+                Logger.LogToFile(logPath, logFileName, $"Distributing to email {email}");
                 var record = new EmailSentRecord
                 {
                     Id = id++,
@@ -275,8 +329,17 @@ namespace ARS.Classess.Utils
 
                     string body = report.EmailBodyTemplate ?? "Please find the attached report.";
 
-                    await emailService.SendAsync(email, subject, body, attachmentPath);
-                    record.Status = "sent";
+                    body = body + "\\n" + attachmentPath;
+
+                    bool result = await EmailSender.SendEmail(email, subject, body);
+                    if (result == false)
+                    {
+                        record.Status = "failed";
+                    }
+                    else
+                    {
+                        record.Status = "sent";
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -291,10 +354,10 @@ namespace ARS.Classess.Utils
         }
 
         private async Task<List<EmailSentRecord>> SendToDestinationEmailAsync(
-            ReportDistributionDestination dest, string attachmentPath, string executionName)
+            ReportDistributionDestination dest, string attachmentPath, string executionName, string logPath, string logFileName)
         {
             var records = new List<EmailSentRecord>();
-            var emailService = new EmailService(); // Inject via DI
+           
 
             var recipients = new List<string>();
             if (!string.IsNullOrWhiteSpace(dest.EmailTo))
@@ -303,6 +366,7 @@ namespace ARS.Classess.Utils
             int id = 1;
             foreach (var email in recipients.Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)))
             {
+                Logger.LogToFile(logPath, logFileName, $"Sending Mail to {email}");
                 var record = new EmailSentRecord
                 {
                     Id = id++,
@@ -312,10 +376,11 @@ namespace ARS.Classess.Utils
 
                 try
                 {
-                    await emailService.SendAsync(email,
+                    string body = dest.EmailBody ?? "Please find the attached report.";
+                    body = body + "\\n" + attachmentPath;
+                    await EmailSender.SendEmail(email,
                         dest.EmailSubject ?? $"Report: {executionName}",
-                        dest.EmailBody ?? "Please find the attached report.",
-                        attachmentPath);
+                        body);
                     record.Status = "sent";
                 }
                 catch (Exception ex)
@@ -330,8 +395,8 @@ namespace ARS.Classess.Utils
             return records;
         }
 
-        private async Task<FileSentRecord> SaveToDestinationFileAsync(
-            ReportDistributionDestination dest, string sourceFilePath)
+        private async Task<FileSentRecord> SaveToDestinationFileAsync( Report report,
+      ReportDistributionDestination dest, string sourceFilePath, string logpath, string logFileName)
         {
             var record = new FileSentRecord
             {
@@ -340,14 +405,61 @@ namespace ARS.Classess.Utils
                 Status = "pending"
             };
 
+            string sourceExt = Path.GetExtension(sourceFilePath); // e.g. ".csv" or ".xlsx"
+            string dest_filename = Path.HasExtension(report.OutputFileName)
+                ? report.OutputFileName
+                : report.OutputFileName + sourceExt;
+
             try
             {
                 string destPath = Path.Combine(dest.FilePath!,
-                    Path.GetFileName(sourceFilePath));
-                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                File.Copy(sourceFilePath, destPath, overwrite: true);
-                record.Path = destPath;
-                record.Status = "saved";
+                    Path.GetFileName(dest_filename));
+
+                string? destDir = Path.GetDirectoryName(destPath);
+                if (string.IsNullOrEmpty(destDir))
+                    Logger.LogToFile(logpath, logFileName, $"Cannot resolve destination directory from path: {destPath}");
+
+                // Retry loop handles transient network blips
+                const int maxAttempts = 3;
+                for (int attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    Logger.LogToFile(logpath, logFileName, $"Attempt {attempt} to save file to destination: {destPath}");
+                    try
+                    {
+                        Directory.CreateDirectory(destDir);
+
+                        // Stream copy avoids the 2 GB limit on File.Copy over some
+                        // SMB shares and gives you a progress hook if needed later.
+                        await using var src = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 81920, useAsync: true);
+                        await using var dst = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
+                        await src.CopyToAsync(dst);
+
+                        record.Path = destPath;
+                        record.Status = "saved";
+                        break; // success — exit retry loop
+                    }
+                    catch (IOException) when (attempt < maxAttempts)
+                    {
+                        // Brief back-off before retrying (handles momentary share
+                        // unavailability, DFS referral delays, etc.)
+                        await Task.Delay(TimeSpan.FromSeconds(attempt * 2));
+                    }
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                record.Status = "failed";
+                record.ErrorMessage = $"Access denied to network path '{dest.FilePath}': {ex.Message}";
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                record.Status = "failed";
+                record.ErrorMessage = $"Network path not found '{dest.FilePath}': {ex.Message}";
+            }
+            catch (IOException ex)
+            {
+                record.Status = "failed";
+                record.ErrorMessage = $"Network I/O error after retries: {ex.Message}";
             }
             catch (Exception ex)
             {
@@ -357,7 +469,6 @@ namespace ARS.Classess.Utils
 
             return record;
         }
-
         // ══════════════════════════════════════════════════════════════════════
         // EXCEL EXPORT
         // ══════════════════════════════════════════════════════════════════════

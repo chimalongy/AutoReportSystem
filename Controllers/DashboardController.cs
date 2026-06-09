@@ -77,6 +77,7 @@ namespace ARS.Controllers
             if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
                 return Forbid();
 
+
             // ── Only Super Admin can create Admin users ─────────────────────────
             if (string.Equals(req.Role, "Admin", StringComparison.OrdinalIgnoreCase) &&
                 !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
@@ -110,7 +111,10 @@ namespace ARS.Controllers
                 ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
                 pageUrl: HttpContext.Request.Path
             );
-
+            bool created = await EmailSender.SendUserCreationEmail(
+    address: req.Email,
+    firstName: req.FirstName,
+    defaultPassword: _config["DefaultPassword"]);
             return Json(result);
         }
 
@@ -255,7 +259,7 @@ namespace ARS.Controllers
 
         [HttpGet]
         [Route("Dashboard/Databases/GetAll")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
         public async Task<IActionResult> DbConfigsGetAll()
         {
             var configs = await _db.DbConnectionConfigs
@@ -571,7 +575,7 @@ namespace ARS.Controllers
         // ══════════════════════════════════════════════════════════════════════
 
         [Route("Dashboard/Reports")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
         public IActionResult Reports()
         {
             return View("~/Views/Dashboard/Reports.cshtml");
@@ -585,7 +589,7 @@ namespace ARS.Controllers
 
         [HttpGet]
         [Route("Dashboard/Reports/GetAll")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
         public async Task<IActionResult> ReportsGetAll()
         {
             var reports = await _db.Reports
@@ -651,12 +655,12 @@ namespace ARS.Controllers
 
         [HttpPost]
         [Route("Dashboard/Reports/Create")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
         public async Task<IActionResult> ReportsCreate([FromBody] CreateReportRequest req)
         {
             var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
+            //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+            //    return Forbid();
 
             // ── Validation ──────────────────────────────────────────────────
             if (string.IsNullOrWhiteSpace(req.Name))
@@ -777,7 +781,7 @@ namespace ARS.Controllers
                         EmailSubject = dest.EmailSubject,
                         EmailBody = dest.EmailBody,
                         FilePath = dest.FilePath,
-                      
+
                         IsActive = dest.IsActive
                     });
                 }
@@ -854,12 +858,12 @@ namespace ARS.Controllers
 
         [HttpPost]
         [Route("Dashboard/Reports/Update/{id:int}")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
         public async Task<IActionResult> ReportsUpdate(int id, [FromBody] UpdateReportRequest req)
         {
             var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
+            //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+            //    return Forbid();
 
             var report = await _db.Reports
                 .Include(r => r.DistributionDestinations)
@@ -991,7 +995,7 @@ namespace ARS.Controllers
                         EmailSubject = dest.EmailSubject,
                         EmailBody = dest.EmailBody,
                         FilePath = dest.FilePath,
-                  
+
                         IsActive = dest.IsActive
                     });
                 }
@@ -1071,8 +1075,8 @@ namespace ARS.Controllers
         public async Task<IActionResult> ReportsDelete(int id)
         {
             var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
+            //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+            //    return Forbid();
 
             var report = await _db.Reports.FindAsync(id);
             if (report is null)
@@ -1098,12 +1102,12 @@ namespace ARS.Controllers
 
         [HttpPost]
         [Route("Dashboard/Reports/UpdateStatus/{id:int}")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
         public async Task<IActionResult> ReportsUpdateStatus(int id, [FromBody] UpdateReportStatusRequest req)
         {
             var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
+            //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+            //    return Forbid();
 
             var allowed = new[] { "active", "inactive" };
             if (!allowed.Contains(req.Status?.ToLowerInvariant() ?? ""))
@@ -1143,7 +1147,7 @@ namespace ARS.Controllers
 
 
         [Route("Dashboard/Reports/{reportName}")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
         public async Task<IActionResult> ReportDetail(string reportName)
         {
             var report = await _db.Reports
@@ -1165,7 +1169,7 @@ namespace ARS.Controllers
 
         [HttpGet]
         [Route("Dashboard/Reports/Executions/{reportId:int}")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
         public async Task<IActionResult> GetExecutions(int reportId)
         {
             var report = await _db.Reports.FindAsync(reportId);
@@ -1299,7 +1303,7 @@ namespace ARS.Controllers
 
         [HttpGet]
         [Route("Dashboard/Reports/ExecutionLogs")]
-        [Authorize(Roles = "Super Admin,Admin")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
         public IActionResult GetExecutionLogs([FromQuery] string path, [FromQuery] bool download = false)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -1310,23 +1314,56 @@ namespace ARS.Controllers
             var reportsRoot = Path.GetFullPath(GlobalVariables.reportsDirectory);
 
             if (!fullPath.StartsWith(reportsRoot, StringComparison.OrdinalIgnoreCase))
-                return Forbid();
+                return NotFound(new { message = "Root folder not found." });
 
-            if (!System.IO.File.Exists(fullPath))
+            if (!System.IO.File.Exists(fullPath+".logs"))
                 return NotFound(new { message = "Log file not found." });
 
             if (download)
             {
-                var fileName = Path.GetFileName(fullPath);
+                var fileName = Path.GetFileName(fullPath + ".logs");
                 var mimeType = "text/plain";
-                return PhysicalFile(fullPath, mimeType, fileName);
+                return PhysicalFile(fullPath + ".logs", mimeType, fileName);
             }
 
             // Return file content as plain text
-            var content = System.IO.File.ReadAllText(fullPath);
+            var content = System.IO.File.ReadAllText(fullPath + ".logs");
             return Content(content, "text/plain");
         }
 
+
+        [HttpGet]
+        [Route("Dashboard/Reports/Executions/Download/{executionId:int}")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
+        public async Task<IActionResult> DownloadExecutionResult(int executionId)
+        {
+            var execution = await _db.Executions.FindAsync(executionId);
+            if (execution is null)
+                return NotFound(new { message = "Execution not found." });
+
+            if (string.IsNullOrEmpty(execution.ExecutionResultPath))
+                return NotFound(new { message = "No result file for this execution." });
+
+            var fullPath = Path.GetFullPath(execution.ExecutionResultPath);
+            var reportsRoot = Path.GetFullPath(GlobalVariables.reportsDirectory);
+
+            if (!fullPath.StartsWith(reportsRoot, StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
+            if (!System.IO.File.Exists(fullPath))
+                return NotFound("Result file not found on disk.");
+
+            var fileName = Path.GetFileName(fullPath);
+            var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+            var mimeType = ext switch
+            {
+                ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ".csv" => "text/csv",
+                _ => "application/octet-stream"
+            };
+
+            return PhysicalFile(fullPath, mimeType, fileName);
+        }
 
 
 

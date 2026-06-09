@@ -159,6 +159,13 @@ namespace ARS.Controllers
                 pageUrl: HttpContext.Request.Path
             );
 
+            bool updated = await EmailSender.SendPasswordUpdatedEmail(
+    address: user.Email,
+    firstName: user.FirstName,
+    updatedDate: DateTime.Now.ToString("MMM dd, yyyy HH:mm"),
+    role: user.Role
+);
+
             TempData["SuccessMessage"] = "Password updated successfully. Please sign in with your new password.";
             return RedirectToAction("Login");
         }

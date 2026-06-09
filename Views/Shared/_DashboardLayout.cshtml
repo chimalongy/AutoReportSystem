@@ -3,105 +3,256 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] — ARS Portal</title>
+    <title>@ViewData["Title"] — Auto Report Generator</title>
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+    <style>
+        /* ── Sidebar shell ── */
+        #sidebar {
+            width: 220px;
+            flex-shrink: 0;
+            transition: transform 0.25s ease;
+        }
+
+        /* ── Mobile overlay ── */
+        #mob-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 49;
+        }
+        #mob-overlay.open { display: block; }
+
+        /* ── Mobile: sidebar slides in from left ── */
+        @@media (max-width: 767px) {
+            #sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100dvh;
+                z-index: 50;
+                transform: translateX(-100%);
+                width: 240px;
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
+            #main-wrap {
+                padding-left: 0 !important;
+            }
+        }
+    </style>
 </head>
-<body class="bg-surface min-h-screen font-sans pb-10">
+<body class="bg-surface min-h-screen font-sans">
 
     @{
-        var firstName = User.FindFirst("firstName")?.Value ?? "";
-        var lastName = User.FindFirst("lastName")?.Value ?? "";
-        var fullName = $"{firstName} {lastName}".Trim();
-        var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
-        var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
-        var initials = $"{(firstName.Length > 0 ? firstName[0] : '?')}{(lastName.Length > 0 ? lastName[0] : '?')}".ToUpper();
+        var firstName  = User.FindFirst("firstName")?.Value ?? "";
+        var lastName   = User.FindFirst("lastName")?.Value ?? "";
+        var fullName   = $"{firstName} {lastName}".Trim();
+        var userEmail  = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+        var userRole   = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+        var initials   = $"{(firstName.Length > 0 ? firstName[0] : '?')}{(lastName.Length > 0 ? lastName[0] : '?')}".ToUpper();
         var activePage = ViewData["ActivePage"]?.ToString() ?? "";
+        var isAdmin    = userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase)
+                      || userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase);
     }
 
-    @* ── Header ── *@
-    <header class="bg-surface-card border-b border-border px-6 py-3 flex items-center justify-between shadow-sm sticky top-0 z-40">
-
-        @* Left — logo + app name *@
+    @* ── Mobile top bar ── *@
+    <header class="md:hidden bg-surface-card border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-sm">
         <div class="flex items-center gap-2">
             <div class="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center">
                 <span class="text-white text-xs font-bold">A</span>
             </div>
-            <span class="text-text-primary text-sm font-semibold tracking-wide">ARS Portal</span>
+            <span class="text-text-primary text-sm font-semibold tracking-wide">Auto Report Generator</span>
         </div>
-
-        @* Right — nav + user info + sign out *@
-        <div class="flex items-center gap-4">
-
-            @* Navigation — visible to Admin/Super Admin only *@
-            @if (userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) ||
-                 userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                <nav class="hidden md:flex items-center gap-1 mr-4">
-                    <a href="/Dashboard/Index"
-                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                        @(activePage == "Dashboard" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
-                        Dashboard
-                    </a>
-                    <a href="/Dashboard/Settings/Users"
-                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                        @(activePage == "Users" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
-                        Users
-                    </a>
-                    <a href="/Dashboard/Settings/AuditLogs"
-                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                        @(activePage == "AuditLogs" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
-                        Audit Logs
-                    </a>
-                    <a href="/Dashboard/Databases"
-                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                        @(activePage == "Databases" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
-                        Databases
-                    </a>
-                    <a href="/Dashboard/Reports"
-                           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                        @(activePage == "Reports" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
-                        Reports
-                    </a>
-                </nav>
-            }
-
-            @* Divider *@
-            <div class="w-px h-5 bg-border hidden sm:block"></div>
-
-            @* Avatar + name *@
-            <div class="flex items-center gap-2.5">
-                <div class="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-                    <span class="text-white text-xs font-semibold">@initials</span>
-                </div>
-                <div class="hidden sm:flex flex-col leading-tight">
-                    <span class="text-text-primary text-xs font-semibold">@fullName</span>
-                    <span class="text-text-muted text-xs">@userEmail</span>
-                </div>
-                @if (!string.IsNullOrEmpty(userRole))
-                {
-                    <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-full
-                        text-xs font-medium bg-blue-100 text-blue-600">
-                        @userRole
-                    </span>
-                }
-            </div>
-
-            @* Divider *@
-            <div class="w-px h-5 bg-border hidden sm:block"></div>
-
-            @* Sign out *@
-            <a asp-controller="Auth" asp-action="Logout"
-                   class="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors whitespace-nowrap">
-                Sign out
-            </a>
-        </div>
-
+        <button id="mob-menu-btn"
+                aria-label="Open navigation menu"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:bg-surface hover:text-text-primary transition-colors">
+            <svg id="icon-open" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="6"  x2="20" y2="6"/>
+                <line x1="4" y1="12" x2="20" y2="12"/>
+                <line x1="4" y1="18" x2="20" y2="18"/>
+            </svg>
+            <svg id="icon-close" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                 class="hidden">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6"  y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
     </header>
 
-    @* ── Page content ── *@
-    <main class="max-w-6xl mx-auto px-4 py-8">
-        @RenderBody()
-    </main>
+    @* ── Overlay (mobile only) ── *@
+    <div id="mob-overlay"></div>
+
+    @* ── Body: sidebar + main ── *@
+    <div class="flex min-h-screen" id="main-wrap">
+
+        @* ──────────── Sidebar ──────────── *@
+        <aside id="sidebar" class="bg-surface-card border-r border-border flex flex-col">
+
+            @* Logo (desktop only — hidden on mobile since top bar shows it) *@
+            <div class="hidden md:flex items-center gap-2.5 px-5 py-4 border-b border-border">
+                <div class="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center flex-shrink-0">
+                    <span class="text-white text-xs font-bold">A</span>
+                </div>
+                <span class="text-text-primary text-sm font-semibold tracking-wide">Auto Report Generator</span>
+            </div>
+
+            @* ── Nav links ── *@
+            <nav class="flex-1 px-3 py-4 flex flex-col gap-0.5">
+
+                @* Close btn visible on mobile inside sidebar *@
+                <button id="mob-close-btn"
+                        class="md:hidden flex items-center justify-end mb-3 text-text-secondary hover:text-text-primary transition-colors"
+                        aria-label="Close menu">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6"  y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+
+                @* Section label *@
+                @if (isAdmin)
+                {
+                    <p class="text-xs font-semibold text-text-muted uppercase tracking-widest px-3 mb-1 mt-1">Admin</p>
+
+                    <a href="/Dashboard/Index"
+                       class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                           @(activePage == "Dashboard" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        @* Dashboard icon *@
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                        Dashboard
+                    </a>
+
+                    <a href="/Dashboard/Settings/Users"
+                       class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                           @(activePage == "Users" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        Users
+                    </a>
+
+                    <a href="/Dashboard/Settings/AuditLogs"
+                       class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                           @(activePage == "AuditLogs" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        Audit Logs
+                    </a>
+
+                    <a href="/Dashboard/Databases"
+                       class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                           @(activePage == "Databases" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                        </svg>
+                        Databases
+                    </a>
+
+                    <div class="my-2 border-t border-border"></div>
+                    <p class="text-xs font-semibold text-text-muted uppercase tracking-widest px-3 mb-1">General</p>
+                }
+
+                <a href="/Dashboard/Reports"
+                   class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                       @(activePage == "Reports" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    Reports
+                </a>
+
+            </nav>
+
+            @* ── User profile at the bottom ── *@
+            <div class="border-t border-border px-4 py-3 flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                    <span class="text-white text-xs font-semibold">@initials</span>
+                </div>
+                <div class="flex flex-col leading-tight min-w-0 flex-1">
+                    <span class="text-text-primary text-xs font-semibold truncate">@fullName</span>
+                    <span class="text-text-muted text-xs truncate">@userEmail</span>
+                </div>
+                <a asp-controller="Auth" asp-action="Logout"
+                   title="Sign out"
+                   class="flex-shrink-0 text-text-muted hover:text-red-500 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                </a>
+            </div>
+
+        </aside>
+
+        @* ──────────── Page content ──────────── *@
+        <div class="flex-1 min-w-0">
+            <main class="max-w-6xl mx-auto px-4 md:px-6 py-8">
+                @RenderBody()
+            </main>
+        </div>
+
+    </div>
+
+    @* ── Mobile sidebar JS ── *@
+    <script>
+        (function () {
+            var sidebar  = document.getElementById('sidebar');
+            var overlay  = document.getElementById('mob-overlay');
+            var openBtn  = document.getElementById('mob-menu-btn');
+            var closeBtn = document.getElementById('mob-close-btn');
+            var iconOpen  = document.getElementById('icon-open');
+            var iconClose = document.getElementById('icon-close');
+
+            function open() {
+                sidebar.classList.add('open');
+                overlay.classList.add('open');
+                iconOpen.classList.add('hidden');
+                iconClose.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function close() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('open');
+                iconOpen.classList.remove('hidden');
+                iconClose.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+
+            openBtn.addEventListener('click', open);
+            closeBtn.addEventListener('click', close);
+            overlay.addEventListener('click', close);
+        })();
+    </script>
 
     @RenderSection("Scripts", required: false)
 </body>
