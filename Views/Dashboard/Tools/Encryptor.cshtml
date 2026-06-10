@@ -1,0 +1,535 @@
+@{
+    var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    if (!role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+    {
+        Context.Response.Redirect("/Dashboard/Index");
+        return;
+    }
+}
+
+@{
+    ViewData["Title"] = "Encryptor";
+    ViewData["ActivePage"] = "Encryptor";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<style>
+    @@keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up   { opacity: 0; animation: fadeUp 0.45s ease forwards; }
+    .fade-up-1 { animation-delay: 0.05s; }
+    .fade-up-2 { animation-delay: 0.15s; }
+    .fade-up-3 { animation-delay: 0.25s; }
+
+    .tool-textarea {
+        width: 100%;
+        min-height: 120px;
+        resize: vertical;
+        padding: 0.65rem 0.875rem;
+        font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+        font-size: 0.8125rem;
+        line-height: 1.6;
+        background: var(--color-surface, #f8fafc);
+        border: 1px solid var(--color-border, #e5e7eb);
+        border-radius: 0.75rem;
+        color: var(--color-text-primary, #111827);
+        transition: border-color 0.15s, box-shadow 0.15s;
+        outline: none;
+    }
+    .tool-textarea:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .tool-textarea.output-area {
+        background: var(--color-surface-alt, #f3f4f6);
+        color: var(--color-text-secondary, #374151);
+        cursor: default;
+    }
+    .tool-textarea.output-area.has-value {
+        background: var(--color-surface, #f8fafc);
+        color: var(--color-text-primary, #111827);
+    }
+    .tool-textarea.error-area {
+        border-color: #fca5a5;
+        background: #fff5f5;
+        color: #991b1b;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1.1rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        border-radius: 0.65rem;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+    .btn-primary {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+    }
+    .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .btn-primary:active { transform: scale(0.98); }
+
+    .btn-secondary {
+        background: transparent;
+        color: var(--color-text-secondary, #374151);
+        border-color: var(--color-border, #e5e7eb);
+    }
+    .btn-secondary:hover {
+        background: var(--color-surface, #f8fafc);
+        color: var(--color-text-primary, #111827);
+    }
+
+    .btn-danger {
+        background: transparent;
+        color: #dc2626;
+        border-color: #fca5a5;
+    }
+    .btn-danger:hover { background: #fff5f5; border-color: #f87171; }
+
+    .btn-success {
+        background: transparent;
+        color: #16a34a;
+        border-color: #86efac;
+    }
+    .btn-success:hover { background: #f0fdf4; border-color: #4ade80; }
+
+    /* Toggle checkbox */
+    .toggle-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        user-select: none;
+    }
+    .toggle-wrap input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        accent-color: #2563eb;
+        cursor: pointer;
+    }
+
+    /* Copy feedback */
+    .copy-feedback {
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: #16a34a;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        margin-left: 4px;
+    }
+    .copy-feedback.show { opacity: 1; }
+
+    /* Divider with label */
+    .section-divider {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 1.5rem 0 1.25rem;
+    }
+    .section-divider span {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--color-text-muted, #9ca3af);
+        white-space: nowrap;
+    }
+    .section-divider hr {
+        flex: 1;
+        border: none;
+        border-top: 1px solid var(--color-border, #e5e7eb);
+    }
+
+    /* Result status strip */
+    .result-strip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 0.6rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-bottom: 0.6rem;
+    }
+    .result-strip.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .result-strip.error   { background: #fff5f5; color: #dc2626; border: 1px solid #fecaca; }
+    .result-strip.hidden  { display: none; }
+
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-sm {
+        display: inline-block;
+        width: 13px; height: 13px;
+        border: 2px solid rgba(255,255,255,0.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        vertical-align: middle;
+    }
+</style>
+
+@* ── Page header ── *@
+<div class="flex items-start justify-between mb-6 fade-up fade-up-1">
+    <div>
+        <div class="flex items-center gap-2 mb-1">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                         bg-amber-50 text-amber-700 border border-amber-200">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                Super Admin Only
+            </span>
+        </div>
+        <h1 class="text-text-primary text-2xl font-semibold">Encryptor</h1>
+        <p class="text-text-muted text-sm mt-0.5">
+            Encrypt or decrypt strings using the application's built-in cipher.
+            Use this to generate connection string values or verify existing ones.
+        </p>
+    </div>
+</div>
+
+@* ── Main panel ── *@
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+    @* ────────────────────────── ENCRYPT PANEL ────────────────────────── *@
+    <div class="bg-surface-card border border-border rounded-2xl shadow-sm p-5 fade-up fade-up-2">
+
+        @* Panel header *@
+        <div class="flex items-center gap-2.5 mb-4">
+            <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-text-primary text-sm font-semibold">Encrypt</h2>
+                <p class="text-text-muted text-xs">Plain text → cipher text</p>
+            </div>
+        </div>
+
+        @* Input *@
+        <div class="mb-3">
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Plain text input</label>
+            <textarea id="encryptInput"
+                      class="tool-textarea"
+                      placeholder="Enter text to encrypt…"
+                      spellcheck="false"></textarea>
+        </div>
+
+        @* Hashing toggle *@
+        <div class="mb-4">
+            <label class="toggle-wrap text-xs text-text-secondary">
+                <input type="checkbox" id="encryptHashing" checked />
+                Use hashing (recommended)
+            </label>
+            <p class="text-text-muted text-xs mt-1 ml-5">
+                When enabled, an HMAC is embedded in the cipher for integrity validation.
+            </p>
+        </div>
+
+        @* Action *@
+        <button id="encryptBtn" onclick="doEncrypt()"
+                class="action-btn btn-primary w-full justify-center mb-4">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            Encrypt
+        </button>
+
+        @* Result strip *@
+        <div id="encryptStrip" class="result-strip hidden"></div>
+
+        @* Output *@
+        <div>
+            <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-medium text-text-muted">Result</label>
+                <div class="flex items-center gap-2">
+                    <span id="encryptCopyFeedback" class="copy-feedback">Copied!</span>
+                    <button onclick="copyResult('encryptOutput', 'encryptCopyFeedback')"
+                            class="action-btn btn-secondary text-xs py-1 px-2.5">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+            </div>
+            <textarea id="encryptOutput"
+                      class="tool-textarea output-area"
+                      placeholder="Encrypted output will appear here…"
+                      readonly
+                      spellcheck="false"></textarea>
+        </div>
+    </div>
+
+    @* ────────────────────────── DECRYPT PANEL ────────────────────────── *@
+    <div class="bg-surface-card border border-border rounded-2xl shadow-sm p-5 fade-up fade-up-3">
+
+        @* Panel header *@
+        <div class="flex items-center gap-2.5 mb-4">
+            <div class="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                    <path d="M17 7v4"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-text-primary text-sm font-semibold">Decrypt</h2>
+                <p class="text-text-muted text-xs">Cipher text → plain text</p>
+            </div>
+        </div>
+
+        @* Input *@
+        <div class="mb-3">
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Cipher text input</label>
+            <textarea id="decryptInput"
+                      class="tool-textarea"
+                      placeholder="Enter cipher text to decrypt…"
+                      spellcheck="false"></textarea>
+        </div>
+
+        @* Hashing toggle *@
+        <div class="mb-4">
+            <label class="toggle-wrap text-xs text-text-secondary">
+                <input type="checkbox" id="decryptHashing" checked />
+                Use hashing (recommended)
+            </label>
+            <p class="text-text-muted text-xs mt-1 ml-5">
+                Must match the setting used when the value was originally encrypted.
+            </p>
+        </div>
+
+        @* Action *@
+        <button id="decryptBtn" onclick="doDecrypt()"
+                class="action-btn btn-success w-full justify-center mb-4">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                <path d="M17 7v4"/>
+            </svg>
+            Decrypt
+        </button>
+
+        @* Result strip *@
+        <div id="decryptStrip" class="result-strip hidden"></div>
+
+        @* Output *@
+        <div>
+            <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-medium text-text-muted">Result</label>
+                <div class="flex items-center gap-2">
+                    <span id="decryptCopyFeedback" class="copy-feedback">Copied!</span>
+                    <button onclick="copyResult('decryptOutput', 'decryptCopyFeedback')"
+                            class="action-btn btn-secondary text-xs py-1 px-2.5">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+            </div>
+            <textarea id="decryptOutput"
+                      class="tool-textarea output-area"
+                      placeholder="Decrypted output will appear here…"
+                      readonly
+                      spellcheck="false"></textarea>
+        </div>
+    </div>
+
+</div>
+
+@* ── Usage notes ── *@
+<div class="bg-surface-card border border-border rounded-2xl p-5 mt-5 fade-up fade-up-3">
+    <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </div>
+        <div>
+            <h3 class="text-text-primary text-sm font-semibold mb-1">Usage notes</h3>
+            <ul class="text-text-muted text-xs space-y-1 list-none">
+                <li class="flex items-start gap-1.5">
+                    <span class="text-amber-500 mt-0.5">•</span>
+                    Encrypted values are tied to the application's secret key. They cannot be decrypted on any other instance.
+                </li>
+                <li class="flex items-start gap-1.5">
+                    <span class="text-amber-500 mt-0.5">•</span>
+                    The <strong class="text-text-secondary font-medium">Use hashing</strong> setting must match between encrypt and decrypt operations, otherwise decryption will fail.
+                </li>
+                <li class="flex items-start gap-1.5">
+                    <span class="text-amber-500 mt-0.5">•</span>
+                    Use this tool to generate encrypted values for database connection strings stored in <code class="bg-surface border border-border px-1 py-0.5 rounded text-xs font-mono">appsettings.json</code> or the database configs table.
+                </li>
+                <li class="flex items-start gap-1.5">
+                    <span class="text-amber-500 mt-0.5">•</span>
+                    All operations run server-side. Inputs are never logged.
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    function setLoading(btnId, loading) {
+        const btn = document.getElementById(btnId);
+        if (loading) {
+            btn.disabled = true;
+            btn.dataset.originalHtml = btn.innerHTML;
+            btn.innerHTML = `<span class="spinner-sm"></span>&nbsp; Working…`;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+        }
+    }
+
+    function showStrip(stripId, success, message) {
+        const el = document.getElementById(stripId);
+        el.className = 'result-strip ' + (success ? 'success' : 'error');
+        const icon = success
+            ? `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`
+            : `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+        el.innerHTML = icon + `<span>${escHtml(message)}</span>`;
+    }
+
+    function hideStrip(stripId) {
+        document.getElementById(stripId).className = 'result-strip hidden';
+    }
+
+    function setOutput(outputId, value, isError) {
+        const el = document.getElementById(outputId);
+        el.value = value;
+        el.className = 'tool-textarea output-area' +
+            (isError  ? ' error-area'  : '') +
+            (!isError && value ? ' has-value' : '');
+    }
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function copyResult(outputId, feedbackId) {
+        const val = document.getElementById(outputId).value;
+        if (!val) return;
+        try {
+            await navigator.clipboard.writeText(val);
+        } catch {
+            // Fallback
+            const el = document.getElementById(outputId);
+            el.select();
+            document.execCommand('copy');
+        }
+        const fb = document.getElementById(feedbackId);
+        fb.classList.add('show');
+        setTimeout(() => fb.classList.remove('show'), 1800);
+    }
+
+    // ── Encrypt ───────────────────────────────────────────────────────────────
+
+    async function doEncrypt() {
+        const input = document.getElementById('encryptInput').value.trim();
+        if (!input) {
+            showStrip('encryptStrip', false, 'Please enter text to encrypt.');
+            return;
+        }
+
+        hideStrip('encryptStrip');
+        setOutput('encryptOutput', '', false);
+        setLoading('encryptBtn', true);
+
+        try {
+            const res = await fetch('/Dashboard/Tools/Encryptor/Encrypt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    input: input,
+                    useHashing: document.getElementById('encryptHashing').checked
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setOutput('encryptOutput', data.result, false);
+                showStrip('encryptStrip', true, 'Encrypted successfully.');
+            } else {
+                setOutput('encryptOutput', '', true);
+                showStrip('encryptStrip', false, data.message || 'Encryption failed.');
+            }
+        } catch (err) {
+            setOutput('encryptOutput', '', true);
+            showStrip('encryptStrip', false, 'Network error. Please try again.');
+        } finally {
+            setLoading('encryptBtn', false);
+        }
+    }
+
+    // ── Decrypt ───────────────────────────────────────────────────────────────
+
+    async function doDecrypt() {
+        const input = document.getElementById('decryptInput').value.trim();
+        if (!input) {
+            showStrip('decryptStrip', false, 'Please enter cipher text to decrypt.');
+            return;
+        }
+
+        hideStrip('decryptStrip');
+        setOutput('decryptOutput', '', false);
+        setLoading('decryptBtn', true);
+
+        try {
+            const res = await fetch('/Dashboard/Tools/Encryptor/Decrypt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    input: input,
+                    useHashing: document.getElementById('decryptHashing').checked
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setOutput('decryptOutput', data.result, false);
+                showStrip('decryptStrip', true, 'Decrypted successfully.');
+            } else {
+                setOutput('decryptOutput', '', true);
+                showStrip('decryptStrip', false, data.message || 'Decryption failed.');
+            }
+        } catch (err) {
+            setOutput('decryptOutput', '', true);
+            showStrip('decryptStrip', false, 'Network error. Please try again.');
+        } finally {
+            setLoading('decryptBtn', false);
+        }
+    }
+
+    // ── Keyboard shortcut: Ctrl/Cmd + Enter submits focused panel ─────────────
+    document.getElementById('encryptInput').addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doEncrypt(); }
+    });
+    document.getElementById('decryptInput').addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doDecrypt(); }
+    });
+</script>
+}

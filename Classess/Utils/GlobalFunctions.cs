@@ -191,7 +191,7 @@ namespace ARS.Classess.Utils
 
             if (!exists)
             {
-                var hashedPassword = BCrypt.Net.BCrypt.HashPassword(superAdminPassword);
+                var hashedPassword = superAdminPassword;
 
                 var superAdmin = new AppUser
                 {

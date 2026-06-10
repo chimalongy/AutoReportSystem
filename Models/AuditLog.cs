@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ARS.Models
 {
-    [Table("audit_logs", Schema = "public")]
+    [Table("audit_logs")]
     public class AuditLog
     {
         [Column("id")]

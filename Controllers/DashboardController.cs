@@ -111,10 +111,18 @@ namespace ARS.Controllers
                 ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
                 pageUrl: HttpContext.Request.Path
             );
-            bool created = await EmailSender.SendUserCreationEmail(
-    address: req.Email,
-    firstName: req.FirstName,
-    defaultPassword: _config["DefaultPassword"]);
+            try
+            {
+                bool created = await EmailSender.SendUserCreationEmail(
+   address: req.Email,
+   firstName: req.FirstName,
+   defaultPassword: _config["DefaultPassword"]);
+            }
+            catch (Exception ex) { 
+              //do nothing
+            }
+
+
             return Json(result);
         }
 
@@ -1333,6 +1341,52 @@ namespace ARS.Controllers
 
 
         [HttpGet]
+        [Route("Dashboard/Reports/GetTodayStats")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
+        public async Task<IActionResult> ReportsGetTodayStats()
+        {
+            var todayUtc = DateTime.UtcNow.Date;
+            var tomorrowUtc = todayUtc.AddDays(1);
+
+            // ── Today counts (from executions) ────────────────────────────────────
+            var completedToday = await _db.Executions
+                .CountAsync(e => e.ExecutionStatus == "completed"
+                              && e.StartTime >= todayUtc
+                              && e.StartTime < tomorrowUtc);
+
+            var failedToday = await _db.Executions
+                .CountAsync(e => e.ExecutionStatus == "failed"
+                              && e.StartTime >= todayUtc
+                              && e.StartTime < tomorrowUtc);
+
+            var scheduledToday = await _db.Reports
+                .CountAsync(r => r.Status == "active"
+                              && r.NextRunDate.HasValue
+                              && r.NextRunDate.Value >= todayUtc
+                              && r.NextRunDate.Value < tomorrowUtc);
+
+            // ── Overall counts ────────────────────────────────────────────────────
+            var totalReports = await _db.Reports.CountAsync();
+            var totalCompleted = await _db.Executions.CountAsync(e => e.ExecutionStatus == "completed");
+            var totalFailed = await _db.Executions.CountAsync(e => e.ExecutionStatus == "failed");
+            var totalScheduled = await _db.Reports.CountAsync(r => r.Status == "active" && r.NextRunDate.HasValue);
+
+            return Json(new
+            {
+                // today
+                scheduledToday,
+                completedToday,
+                failedToday,
+                // overall
+                total = totalReports,
+                totalScheduled,
+                totalCompleted,
+                totalFailed
+            });
+        }
+
+
+        [HttpGet]
         [Route("Dashboard/Reports/Executions/Download/{executionId:int}")]
         [Authorize(Roles = "Super Admin,Admin,Support")]
         public async Task<IActionResult> DownloadExecutionResult(int executionId)
@@ -1365,7 +1419,54 @@ namespace ARS.Controllers
             return PhysicalFile(fullPath, mimeType, fileName);
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        // ENCRYPTION TOOL (SUPER ADMIN ONLY)
+        // ══════════════════════════════════════════════════════════════════════
 
+        [Route("Dashboard/Tools/Encryptor")]
+        [Authorize(Roles = "Super Admin")]
+        public IActionResult Encryptor()
+        {
+            return View("~/Views/Dashboard/Tools/Encryptor.cshtml");
+        }
+
+        [HttpPost]
+        [Route("Dashboard/Tools/Encryptor/Encrypt")]
+        [Authorize(Roles = "Super Admin")]
+        public IActionResult EncryptString([FromBody] EncryptorRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req?.Input))
+                return BadRequest(new { message = "Input text is required." });
+
+            try
+            {
+                var encrypted = Cryptor.Encrypt(req.Input, req.UseHashing ?? true);
+                return Json(new { success = true, result = encrypted });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = $"Encryption failed: {ex.Message}" });
+            }
+        }
+
+        [HttpPost]
+        [Route("Dashboard/Tools/Encryptor/Decrypt")]
+        [Authorize(Roles = "Super Admin")]
+        public IActionResult DecryptString([FromBody] EncryptorRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req?.Input))
+                return BadRequest(new { message = "Input text is required." });
+
+            try
+            {
+                var decrypted = Cryptor.Decrypt(req.Input, req.UseHashing ?? true);
+                return Json(new { success = true, result = decrypted });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = $"Decryption failed: {ex.Message}" });
+            }
+        }
 
 
     }

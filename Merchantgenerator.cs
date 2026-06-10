@@ -146,7 +146,7 @@ namespace ARS
 
             /// <summary>
             /// Inserts <paramref name="totalRecords"/> merchants into
-            /// <c>public.merchants</c> using PostgreSQL binary COPY for maximum
+          
             /// throughput. Progress is written to <see cref="Console"/>.
             /// </summary>
             /// <param name="connectionString">Npgsql connection string.</param>

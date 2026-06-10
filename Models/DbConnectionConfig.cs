@@ -8,7 +8,7 @@ namespace ARS.Models
     /// NOTE: Password is NEVER stored here. It is only used to build
     /// the connection string, which is then encrypted and stored.
     /// </summary>
-    [Table("db_connection_configs", Schema = "public")]
+    [Table("db_connection_configs")]
     public class DbConnectionConfig
     {
         [Key]

@@ -46,15 +46,18 @@
 <body class="bg-surface min-h-screen font-sans">
 
     @{
-        var firstName  = User.FindFirst("firstName")?.Value ?? "";
-        var lastName   = User.FindFirst("lastName")?.Value ?? "";
-        var fullName   = $"{firstName} {lastName}".Trim();
-        var userEmail  = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
-        var userRole   = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
-        var initials   = $"{(firstName.Length > 0 ? firstName[0] : '?')}{(lastName.Length > 0 ? lastName[0] : '?')}".ToUpper();
-        var activePage = ViewData["ActivePage"]?.ToString() ?? "";
-        var isAdmin    = userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase)
-                      || userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            var firstName  = User.FindFirst("firstName")?.Value ?? "";
+            var lastName   = User.FindFirst("lastName")?.Value ?? "";
+            var fullName   = $"{firstName} {lastName}".Trim();
+            var userEmail  = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+            var userRole   = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+            var initials   = $"{(firstName.Length > 0 ? firstName[0] : '?')}{(lastName.Length > 0 ? lastName[0] : '?')}".ToUpper();
+            var activePage = ViewData["ActivePage"]?.ToString() ?? "";
+            var isAdmin    = userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase)
+                          || userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            var isSuperAdmin = userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
+
+
     }
 
     @* ── Mobile top bar ── *@
@@ -172,10 +175,27 @@
                         Databases
                     </a>
 
-                    <div class="my-2 border-t border-border"></div>
-                    <p class="text-xs font-semibold text-text-muted uppercase tracking-widest px-3 mb-1">General</p>
-                }
+                    
 
+                   
+                }
+                    @if (isSuperAdmin)
+                    {
+                        <a href="/Dashboard/Tools/Encryptor"
+                       class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                           @(activePage == "Encryptor" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        Encryptor
+                    </a>
+                        
+                    }
+                     <div class="my-2 border-t border-border"></div>
+                    <p class="text-xs font-semibold text-text-muted uppercase tracking-widest px-3 mb-1">General</p>
                 <a href="/Dashboard/Reports"
                    class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                        @(activePage == "Reports" ? "bg-blue-50 text-blue-600" : "text-text-secondary hover:text-text-primary hover:bg-surface")">

@@ -30,7 +30,6 @@
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 1rem;
         padding: 1.1rem 1.25rem;
-        cursor: pointer;
         transition: border-color 0.15s, box-shadow 0.15s;
         user-select: none;
     }
@@ -38,9 +37,25 @@
         border-color: #93c5fd;
         box-shadow: 0 2px 8px rgba(59,130,246,.08);
     }
-    .report-stat-card.active {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+
+    /* ── Stat number row ─────────────────────────────────────────────────── */
+    .stat-today-num {
+        font-size: 1.5rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+    .stat-overall-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted, #6b7280);
+        background: var(--surface-alt, #f3f4f6);
+        border-radius: 999px;
+        padding: 2px 7px;
+        margin-top: 5px;
+        white-space: nowrap;
     }
 
     /* ── Badge pills ─────────────────────────────────────────────────────── */
@@ -118,46 +133,42 @@
     </p>
 </div>
 
+@* ── Reports overview ──────────────────────────────────────────────────────── *@
+<div class="fade-up fade-up-5">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-text-primary text-base font-semibold">Reports Overview</h2>
+        <a href="/Dashboard/Reports" class="text-xs text-blue-600 font-medium hover:underline">
+            View all reports &rarr;
+        </a>
+    </div>
 
-
-@* ── Reports overview (Admin / Super Admin only) ───────────────────────────── *@
-
-    <div class="fade-up fade-up-5">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-text-primary text-base font-semibold">Reports Overview</h2>
-            <a href="/Dashboard/Reports" class="text-xs text-blue-600 font-medium hover:underline">
-                View all reports &rarr;
-            </a>
-        </div>
-
-        @* ── Stat cards ── *@
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5" id="report-stat-grid">
-            @* Populated by JS *@
-            <div class="report-stat-card col-span-2 md:col-span-5 text-center text-sm text-text-muted py-4">
-                <span class="spinner"></span>&nbsp; Loading reports…
-            </div>
-        </div>
-
-        @* ── Report list ── *@
-        <div class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-                <p class="text-text-primary text-sm font-semibold" id="report-list-title">All reports</p>
-                <button onclick="refreshReports()"
-                        class="text-xs text-text-muted hover:text-text-primary transition-colors flex items-center gap-1">
-                    <svg id="refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <polyline points="23 4 23 10 17 10"/>
-                        <polyline points="1 20 1 14 7 14"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                    Refresh
-                </button>
-            </div>
-            <div id="report-list-body">
-                @* Populated by JS *@
-            </div>
+    @* ── Stat cards ── *@
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5" id="report-stat-grid">
+        @* Populated by JS *@
+        <div class="report-stat-card col-span-2 md:col-span-4 text-center text-sm text-text-muted py-4">
+            <span class="spinner"></span>&nbsp; Loading reports…
         </div>
     </div>
 
+    @* ── Report list ── *@
+    <div class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <p class="text-text-primary text-sm font-semibold" id="report-list-title">All reports</p>
+            <button onclick="refreshReports()"
+                    class="text-xs text-text-muted hover:text-text-primary transition-colors flex items-center gap-1">
+                <svg id="refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                Refresh
+            </button>
+        </div>
+        <div id="report-list-body">
+            @* Populated by JS *@
+        </div>
+    </div>
+</div>
 
 @* ── My Account card (all users) ─────────────────────────────────────────── *@
 <div class="bg-surface-card border border-border rounded-2xl p-5 shadow-sm fade-up fade-up-4 mt-6">
@@ -214,28 +225,65 @@
     </div>
 }
 
-@* ── Reports JS (Admin / Super Admin only) ───────────────────────────────── *@
+@* ── Reports JS ───────────────────────────────────────────────────────────── *@
 @if (userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) ||
-     userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)||userRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+     userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+     userRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
 {
     <script>
     (function () {
 
-        // ── Derive a report's "display status" from its fields ──────────────
+        // ── Stat card definitions ───────────────────────────────────────────
+        // todayKey  → the "today" count field from the API
+        // totalKey  → the "overall" count field from the API
+        // For the Total Reports card there is no "today" concept, so todayKey
+        // is null and we show only the single overall number.
+        const STAT_CARDS = [
+            {
+                todayKey:  null,
+                totalKey:  'total',
+                icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+                label:      'Total Reports',
+                colorClass: 'text-text-primary'
+            },
+            {
+                todayKey:  'scheduledToday',
+                totalKey:  'totalScheduled',
+                icon: '<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+                label:      'Scheduled',
+                colorClass: 'text-blue-600'
+            },
+            {
+                todayKey:  'completedToday',
+                totalKey:  'totalCompleted',
+                icon: '<svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                label:      'Completed',
+                colorClass: 'text-green-600'
+            },
+            {
+                todayKey:  'failedToday',
+                totalKey:  'totalFailed',
+                icon: '<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+                label:      'Failed',
+                colorClass: 'text-red-600'
+            }
+        ];
+
+        // ── Derive a report's display status from its fields ────────────────
         function reportStatus(r) {
-            const execType = (r.executionType  || '').toLowerCase();
+            const execType = (r.executionType   || '').toLowerCase();
             const timing   = (r.singleRunTiming || '').toLowerCase();
             const status   = (r.status          || '').toLowerCase();
             const lastRun  = r.lastRunDate;
             const nextRun  = r.nextRunDate;
             const hasErr   = !!r.lastErrorMessage;
 
-            if (hasErr)   return 'failed';
+            if (hasErr)                return 'failed';
             if (status === 'inactive') return 'inactive';
 
             if (execType === 'single') {
                 if (timing === 'immediately' && !lastRun) return 'running';
-                if (lastRun) return 'completed';
+                if (lastRun)  return 'completed';
                 if (nextRun && new Date(nextRun) > new Date()) return 'scheduled';
                 return 'scheduled';
             }
@@ -247,17 +295,9 @@
 
         const LABEL = { all:'All', scheduled:'Scheduled', running:'Running', completed:'Completed', failed:'Failed', inactive:'Inactive' };
         const BADGE = { scheduled:'rs-badge-scheduled', running:'rs-badge-running', completed:'rs-badge-completed', failed:'rs-badge-failed', inactive:'rs-badge-inactive' };
-        const DOT   = { scheduled:'dot-scheduled',      running:'dot-running',      completed:'dot-completed',      failed:'dot-failed',      inactive:'dot-inactive' };
+        const DOT   = { scheduled:'dot-scheduled', running:'dot-running', completed:'dot-completed', failed:'dot-failed', inactive:'dot-inactive' };
 
-        const STAT_CARDS = [
-            { key:'all',       icon:'<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>', label:'Total',     colorClass:'text-text-primary' },
-            { key:'scheduled', icon:'<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', label:'Scheduled', colorClass:'text-blue-600' },
-            { key:'running',   icon:'<svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>', label:'Running',   colorClass:'text-amber-600' },
-            { key:'completed', icon:'<svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', label:'Completed', colorClass:'text-green-600' },
-            { key:'failed',    icon:'<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>', label:'Failed',    colorClass:'text-red-600' },
-        ];
-
-        let allReports  = [];
+        let allReports   = [];
         let activeFilter = 'all';
 
         function fmtDate(dt) {
@@ -265,27 +305,46 @@
             return new Date(dt).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
         }
 
-        // ── Render stat cards ──────────────────────────────────────────────
-        function renderStats() {
-            const counts = { all: allReports.length, scheduled:0, running:0, completed:0, failed:0 };
-            allReports.forEach(r => {
-                const s = reportStatus(r);
-                if (counts[s] !== undefined) counts[s]++;
-            });
+        // ── Render stat cards ───────────────────────────────────────────────
+        function renderStats(stats) {
+            document.getElementById('report-stat-grid').innerHTML = STAT_CARDS.map(c => {
 
-            document.getElementById('report-stat-grid').innerHTML = STAT_CARDS.map(c => `
-                <div class="report-stat-card${activeFilter === c.key ? ' active' : ''}"
-                     onclick="window._rsSetFilter('${c.key}')" title="Filter by ${c.label}">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="${c.colorClass}">${c.icon}</span>
-                        <span class="text-xs text-text-muted">${c.label}</span>
-                    </div>
-                    <div class="text-2xl font-semibold ${c.colorClass}">${counts[c.key]}</div>
-                </div>
-            `).join('');
+                // "Total Reports" card: single large number, no today/overall split
+                if (c.todayKey === null) {
+                    return `
+                        <div class="report-stat-card">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="${c.colorClass}">${c.icon}</span>
+                                <span class="text-xs text-text-muted">${c.label}</span>
+                            </div>
+                            <div class="stat-today-num ${c.colorClass}">${stats[c.totalKey] ?? 0}</div>
+                        </div>`;
+                }
+
+                // All other cards: large "today" number + small overall pill
+                const todayVal = stats[c.todayKey] ?? 0;
+                const totalVal = stats[c.totalKey] ?? 0;
+                return `
+                    <div class="report-stat-card">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="${c.colorClass}">${c.icon}</span>
+                            <span class="text-xs text-text-muted leading-tight">
+                                ${c.label}
+                                <span class="block text-[10px] opacity-60 mt-0.5">today</span>
+                            </span>
+                        </div>
+                        <div class="stat-today-num ${c.colorClass}">${todayVal}</div>
+                        <div class="stat-overall-pill">
+                            <svg class="w-2.5 h-2.5 opacity-60" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="9"/>
+                            </svg>
+                            ${totalVal} overall
+                        </div>
+                    </div>`;
+            }).join('');
         }
 
-        // ── Render report list ─────────────────────────────────────────────
+        // ── Render report list ──────────────────────────────────────────────
         function renderList() {
             const filtered = activeFilter === 'all'
                 ? allReports
@@ -320,34 +379,40 @@
             }).join('');
         }
 
-        // ── Public filter setter (called from inline onclick) ──────────────
+        // ── Public filter setter ────────────────────────────────────────────
         window._rsSetFilter = function (key) {
             activeFilter = key;
-            renderStats();
             renderList();
         };
 
-        // ── Load / refresh ─────────────────────────────────────────────────
+        // ── Load both endpoints in parallel ─────────────────────────────────
         async function load(showSpinner) {
             if (showSpinner) {
                 document.getElementById('report-stat-grid').innerHTML =
-                    '<div class="col-span-2 md:col-span-5 text-center text-sm text-text-muted py-4"><span class="spinner"></span>&nbsp; Loading…</div>';
+                    '<div class="col-span-2 md:col-span-4 text-center text-sm text-text-muted py-4"><span class="spinner"></span>&nbsp; Loading…</div>';
                 document.getElementById('report-list-body').innerHTML = '';
             }
             try {
-                const res = await fetch('/Dashboard/Reports/GetAll', { credentials: 'include' });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                allReports = await res.json();
-                renderStats();
+                const [statsRes, reportsRes] = await Promise.all([
+                    fetch('/Dashboard/Reports/GetTodayStats', { credentials: 'include' }),
+                    fetch('/Dashboard/Reports/GetAll',        { credentials: 'include' })
+                ]);
+
+                if (!statsRes.ok)   throw new Error('Stats HTTP '   + statsRes.status);
+                if (!reportsRes.ok) throw new Error('Reports HTTP ' + reportsRes.status);
+
+                const stats = await statsRes.json();
+                allReports  = await reportsRes.json();
+
+                renderStats(stats);
                 renderList();
             } catch (e) {
                 document.getElementById('report-stat-grid').innerHTML =
-                    `<div class="col-span-2 md:col-span-5 text-center text-sm text-red-500 py-4">Could not load reports: ${e.message}</div>`;
+                    `<div class="col-span-2 md:col-span-4 text-center text-sm text-red-500 py-4">Could not load reports: ${e.message}</div>`;
             }
         }
 
         window.refreshReports = function () { load(true); };
-
         load(true);
     })();
     </script>

@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="Microsoft.Graph" Version="6.2.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
     <PackageReference Include="Npgsql" Version="8.0.3" />
     <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="3.21.120" />
@@ -19,6 +21,10 @@
 
   <ItemGroup>
     <UpToDateCheckBuilt Include="Styles/app.css" Set="Css" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Views\Dashboard\NewFolder\" />
   </ItemGroup>
 
 <Target Name="BuildTailwind" BeforeTargets="Build">

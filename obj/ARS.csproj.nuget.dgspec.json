@@ -44,17 +44,24 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        },
-        "SdkAnalysisLevel": "10.0.200"
+        }
       },
       "frameworks": {
         "net8.0": {
           "framework": "net8.0",
           "targetAlias": "net8.0",
           "dependencies": {
+            "Azure.Identity": {
+              "target": "Package",
+              "version": "[1.21.0, )"
+            },
             "BCrypt.Net-Next": {
               "target": "Package",
               "version": "[4.0.3, )"
+            },
+            "Microsoft.Graph": {
+              "target": "Package",
+              "version": "[6.2.0, )"
             },
             "Npgsql": {
               "target": "Package",
@@ -104,7 +111,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

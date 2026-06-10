@@ -25,7 +25,7 @@ namespace ARS.Jobs
         {
             using var scope = _scopeFactory.CreateScope();  // 👈 fresh scope per execution
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
+            var oneDrive = scope.ServiceProvider.GetRequiredService<OneDriveUploader>();
             var reportId = context.MergedJobDataMap.GetInt("reportId");
 
             var report = await db.Reports
@@ -47,7 +47,7 @@ namespace ARS.Jobs
 
             _logger.LogInformation("ReportExecutionJob: Executing report {ReportId} - {ReportName}", reportId, report.Name);
 
-            var fetcher = new ReportFetcher(db);  // 👈 uses the fresh scoped db
+            var fetcher = new ReportFetcher(db, oneDrive);  // 👈 uses the fresh scoped db
             await fetcher.ExecuteReportAsync(report);
         }
     }

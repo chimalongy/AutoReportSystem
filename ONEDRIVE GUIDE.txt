@@ -1,0 +1,91 @@
+Here's a full step-by-step guide with screenshots references for each value.
+
+Prerequisites
+You need an Azure account with access to the same tenant as your OneDrive/Microsoft 365. Go to portal.azure.com and sign in.
+
+Step 1 — Register the App (gets you TenantId + ClientId)
+
+In the left sidebar click "Microsoft Entra ID" (formerly Azure Active Directory)
+Click "App registrations" in the left menu
+Click "+ New registration" at the top
+Fill in:
+
+Name: ARS Report System (anything descriptive)
+Supported account types: select "Accounts in this organizational directory only (Single tenant)"
+Redirect URI: leave blank
+
+
+Click "Register"
+
+You will land on the app's Overview page. Copy these two values immediately:
+Application (client) ID  →  this is your ClientId
+Directory (tenant) ID    →  this is your TenantId
+Paste them into appsettings.json now.
+
+
+Step 2 — Create the Client Secret (gets you ClientSecret)
+Still on your app's page:
+
+Click "Certificates & secrets" in the left menu
+Click "+ New client secret"
+Fill in:
+
+Description: ARS Secret
+Expires: choose 24 months (or your preference)
+
+
+Click "Add"
+
+⚠️ Copy the Value column immediately — it is hidden forever after you leave this page. The Secret ID column is NOT what you need, it is the Value.
+Value  →  this is your ClientSecret
+
+
+Step 3 — Grant API Permissions
+Still on your app's page:
+
+Click "API permissions" in the left menu
+Click "+ Add a permission"
+Click "Microsoft Graph"
+Click "Application permissions" (NOT Delegated)
+Search for and check these two:
+
+Files.ReadWrite.All
+Sites.ReadWrite.All
+
+
+Click "Add permissions"
+⚠️ Click the "Grant admin consent for {your tenant name}" button
+Click "Yes" to confirm
+
+The status column next to both permissions should now show a green checkmark saying "Granted for {tenant}". If it still shows "Not granted" the upload will get a 403 error.
+
+
+
+Step 4 — Get the UserId (gets you UserId)
+This is the account whose OneDrive will store the uploaded files (e.g. a shared service account like reports@yourcompany.com).
+
+Go back to "Microsoft Entra ID"
+Click "Users" in the left menu
+Search for the account you want to use (e.g. reports@ourcompany.com)
+Click on the user
+On the Overview page you will see:
+
+User principal name  →  e.g. reports@ourcompany.com   ← use this as UserId
+Object ID            →  xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  ← this also works
+Either the UPN (email) or the Object ID works as the UserId value. The UPN is easier to read.
+
+⚠️ This user must have a OneDrive license (Microsoft 365 Business/Enterprise). A plain Azure AD account without a Microsoft 365 license will not have a drive and uploads will fail with a 404.
+
+
+Step 5 — UploadFolder
+This is just a folder name you choose. The uploader will create it automatically inside the root of the OneDrive if it doesn't exist. You don't need to create it manually.
+json"UploadFolder": "ARS_Reports"
+
+Final appsettings.json
+json"OneDrive": {
+  "TenantId":     "paste Directory (tenant) ID here",
+  "ClientId":     "paste Application (client) ID here",
+  "ClientSecret": "paste the secret Value here",
+  "UserId":       "reports@ourcompany.com",
+  "UploadFolder": "ARS_Reports"
+}

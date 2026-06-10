@@ -8,6 +8,7 @@ namespace ARS.Services
     {
         private readonly ISchedulerFactory _schedulerFactory;
         private readonly ILogger<ReportSchedulerService> _logger;
+        private static readonly TimeZoneInfo AppTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Africa/Lagos");
 
         public ReportSchedulerService(ISchedulerFactory schedulerFactory, ILogger<ReportSchedulerService> logger)
         {
@@ -134,7 +135,7 @@ namespace ARS.Services
 
         private List<ITrigger> BuildDailyTriggers(Report report, string group)
         {
-            var (hour, minute) = ParseTime(report.ScheduleTime);
+            var (hour, minute) = ParseTimeAsUtc(report.ScheduleTime);
 
             var trigger = TriggerBuilder.Create()
                 .WithIdentity("daily", group)
@@ -157,7 +158,7 @@ namespace ARS.Services
             if (days.Count == 0)
                 return new List<ITrigger>();
 
-            var (hour, minute) = ParseTime(report.ScheduleTime);
+            var (hour, minute) = ParseTimeAsUtc(report.ScheduleTime);
 
             // Map day names to cron day-of-week abbreviations
             var cronDays = days
@@ -196,7 +197,7 @@ namespace ARS.Services
                 return new List<ITrigger>();
 
             var day = Math.Clamp(report.ScheduleDayOfMonth.Value, 1, 31);
-            var (hour, minute) = ParseTime(report.ScheduleTime);
+            var (hour, minute) = ParseTimeAsUtc(report.ScheduleTime);
 
             var trigger = TriggerBuilder.Create()
                 .WithIdentity("monthly", group)
@@ -262,7 +263,7 @@ namespace ARS.Services
                 if (!DateTime.TryParse(item.Date, out var date))
                     continue;
 
-                var (hour, minute) = ParseTime(item.Time);
+                var (hour, minute) = ParseTimeAsUtc(item.Time);
                 var fireAt = new DateTimeOffset(date.Year, date.Month, date.Day, hour, minute, 0, TimeSpan.Zero);
 
                 if (fireAt <= now)
@@ -286,20 +287,25 @@ namespace ARS.Services
 
         private static string TriggerGroupFor(int reportId) => $"report_{reportId}";
 
-        private static (int hour, int minute) ParseTime(string? timeStr)
+        private static (int hour, int minute) ParseTimeAsUtc(string? timeStr)
         {
             if (string.IsNullOrWhiteSpace(timeStr))
-                return (9, 0);
+                return (8, 0); // 09:00 WAT = 08:00 UTC
 
             var parts = timeStr.Split(':');
             if (parts.Length >= 2 &&
                 int.TryParse(parts[0], out var h) &&
                 int.TryParse(parts[1], out var m))
             {
-                return (Math.Clamp(h, 0, 23), Math.Clamp(m, 0, 59));
+                var localDt = new DateTime(2000, 1, 1,
+                    Math.Clamp(h, 0, 23), Math.Clamp(m, 0, 59), 0,
+                    DateTimeKind.Unspecified);
+
+                var utcDt = TimeZoneInfo.ConvertTimeToUtc(localDt, AppTimeZone);
+                return (utcDt.Hour, utcDt.Minute);
             }
 
-            return (9, 0);
+            return (8, 0);
         }
 
         private class CustomRecurringEntry

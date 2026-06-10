@@ -44,25 +44,59 @@ namespace ARS.Controllers
                 var user = await _db.AppUsers
                     .FirstOrDefaultAsync(u => u.Email == email.Trim().ToLower());
 
-                if (user is null || !BCrypt.Net.BCrypt.Verify(password, user.Password))
+                if (user is null)
                 {
                     ModelState.AddModelError("", "Invalid email or password.");
                     return View();
                 }
 
+                // ── Password verification — strategy depends on role ───────────────
+                bool passwordValid = false;
+
+                if (string.Equals(user.Role, "Super Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Super admin password is stored as a TripleDES-encrypted string.
+                    // Decrypt it and compare against the known super-admin sentinel value.
+                    try
+                    {
+                        string decrypted = Cryptor.Decrypt(user.Password, useHashing: true);
+                        passwordValid = decrypted == password;
+                    }
+                    catch
+                    {
+                        // Decryption failure — treat as wrong password
+                        passwordValid = false;
+                    }
+                }
+                else
+                {
+                    // Admin / Support — password is BCrypt-hashed
+                    passwordValid = BCrypt.Net.BCrypt.Verify(password, user.Password);
+                }
+
+                if (!passwordValid)
+                {
+                    ModelState.AddModelError("", "Invalid email or password.");
+                    return View();
+                }
+
+                // ── Account status check ──────────────────────────────────────────
                 if (!string.Equals(user.ProfileStatus, "enabled", StringComparison.OrdinalIgnoreCase))
                 {
                     ModelState.AddModelError("", "Your account has been disabled. Please contact your administrator.");
                     return View();
                 }
 
-                // ── Default-password check → force change ─────────────────────────
-                var defaultPassword = _config["DefaultPassword"];
-                if (!string.IsNullOrEmpty(defaultPassword) &&
-                    BCrypt.Net.BCrypt.Verify(defaultPassword, user.Password))
+                // ── Default-password check (non-SuperAdmin only) → force change ────
+                if (!string.Equals(user.Role, "Super Admin", StringComparison.OrdinalIgnoreCase))
                 {
-                    TempData["ForceChangeUserId"] = user.Id;
-                    return RedirectToAction("UpdatePassword");
+                    var defaultPassword = _config["DefaultPassword"];
+                    if (!string.IsNullOrEmpty(defaultPassword) &&
+                        BCrypt.Net.BCrypt.Verify(defaultPassword, user.Password))
+                    {
+                        TempData["ForceChangeUserId"] = user.Id;
+                        return RedirectToAction("UpdatePassword");
+                    }
                 }
 
                 // ── All checks passed — sign the user in ──────────────────────────
@@ -159,14 +193,28 @@ namespace ARS.Controllers
                 pageUrl: HttpContext.Request.Path
             );
 
-            bool updated = await EmailSender.SendPasswordUpdatedEmail(
-    address: user.Email,
-    firstName: user.FirstName,
-    updatedDate: DateTime.Now.ToString("MMM dd, yyyy HH:mm"),
-    role: user.Role
-);
+            bool emailConfirmed = false;
 
-            TempData["SuccessMessage"] = "Password updated successfully. Please sign in with your new password.";
+            try
+            {
+                bool updated = await EmailSender.SendPasswordUpdatedEmail(
+                    address: user.Email,
+                    firstName: user.FirstName,
+                    updatedDate: DateTime.Now.ToString("MMM dd, yyyy HH:mm"),
+                    role: user.Role
+                );
+
+                emailConfirmed = true;
+            }
+            catch (Exception)
+            {
+                emailConfirmed = false;
+            }
+
+            TempData["SuccessMessage"] = emailConfirmed
+                ? "Password updated successfully. Please sign in with your new password."
+                : "Password updated successfully. No confirmation email sent.";
+
             return RedirectToAction("Login");
         }
 

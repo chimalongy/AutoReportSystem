@@ -5,13 +5,13 @@
 -- ============================================================
 
 -- Create schema if it doesn't exist
-CREATE SCHEMA IF NOT EXISTS public;
+CREATE SCHEMA IF NOT EXISTS reporting;
 
 -- ============================================================
 -- Table: app_users
 -- Stores all user accounts with roles (Super Admin, Admin, Support)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.app_users (
+CREATE TABLE IF NOT EXISTS reporting.app_users (
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(100),
     last_name VARCHAR(100),
@@ -25,13 +25,13 @@ CREATE TABLE IF NOT EXISTS public.app_users (
 );
 
 -- Index for faster email lookups
-CREATE INDEX IF NOT EXISTS idx_app_users_email ON public.app_users(email);
+CREATE INDEX IF NOT EXISTS idx_app_users_email ON reporting.app_users(email);
 
 -- ============================================================
 -- Table: audit_logs
 -- Records all actions performed in the application
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.audit_logs (
+CREATE TABLE IF NOT EXISTS reporting.audit_logs (
     id SERIAL PRIMARY KEY,
     event TEXT,
     eventdate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 );
 
 -- Index for faster date-based queries
-CREATE INDEX IF NOT EXISTS idx_audit_logs_eventdate ON public.audit_logs(eventdate DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_eventdate ON reporting.audit_logs(eventdate DESC);
 
 -- ============================================================
 -- Default Super Admin Account
@@ -60,7 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_eventdate ON public.audit_logs(eventda
 -- Stores configured external database connections with encrypted
 -- connection strings. Passwords are NEVER stored directly.
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.db_connection_configs (
+CREATE TABLE IF NOT EXISTS reporting.db_connection_configs (
     id SERIAL PRIMARY KEY,
     database_type VARCHAR(50) NOT NULL,
     host VARCHAR(255) NOT NULL,
@@ -74,13 +74,13 @@ CREATE TABLE IF NOT EXISTS public.db_connection_configs (
 );
 
 -- Index for faster status-based queries
-CREATE INDEX IF NOT EXISTS idx_db_configs_status ON public.db_connection_configs(status);
+CREATE INDEX IF NOT EXISTS idx_db_configs_status ON reporting.db_connection_configs(status);
 
 -- ============================================================
 -- Table: reports
 -- Stores report configurations with automation scheduling
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.reports (
+CREATE TABLE IF NOT EXISTS reporting.reports (
     id SERIAL PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
     db_connection_config_id INTEGER NOT NULL,
@@ -117,14 +117,14 @@ CREATE TABLE IF NOT EXISTS public.reports (
     
     CONSTRAINT fk_reports_db_config 
         FOREIGN KEY (db_connection_config_id) 
-        REFERENCES public.db_connection_configs(id) 
+        REFERENCES reporting.db_connection_configs(id) 
         ON DELETE RESTRICT
 );
 
 -- ══════════════════════════════════════════════════════════════════════
 -- NEW TABLE: report_distribution_destinations
 -- ══════════════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS public.report_distribution_destinations (
+CREATE TABLE IF NOT EXISTS reporting.report_distribution_destinations (
     id SERIAL PRIMARY KEY,
     report_id INTEGER NOT NULL,
     destination_type VARCHAR(20) NOT NULL DEFAULT 'email',
@@ -134,17 +134,18 @@ CREATE TABLE IF NOT EXISTS public.report_distribution_destinations (
     email_subject VARCHAR(300),
     email_body TEXT,
     file_path VARCHAR(500),
+    max_rows_per_sheet INTEGER DEFAULT 0,
     
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT fk_destinations_report 
         FOREIGN KEY (report_id) 
-        REFERENCES public.reports(id) 
+        REFERENCES reporting.reports(id) 
         ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS public.executions (
+CREATE TABLE IF NOT EXISTS reporting.executions (
     id SERIAL PRIMARY KEY,
     report_id INTEGER NOT NULL,
     execution_status VARCHAR(20) NOT NULL DEFAULT 'running'
@@ -161,36 +162,36 @@ CREATE TABLE IF NOT EXISTS public.executions (
 
     CONSTRAINT fk_executions_report 
         FOREIGN KEY (report_id) 
-        REFERENCES public.reports(id) 
+        REFERENCES reporting.reports(id) 
         ON DELETE CASCADE
 );
 
 
 -- Indexes for common query patterns
-CREATE INDEX IF NOT EXISTS idx_reports_status ON public.reports(status);
-CREATE INDEX IF NOT EXISTS idx_reports_execution_type ON public.reports(execution_type);
-CREATE INDEX IF NOT EXISTS idx_reports_next_run_date ON public.reports(next_run_date);
-CREATE INDEX IF NOT EXISTS idx_reports_created_at ON public.reports(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reporting.reports(status);
+CREATE INDEX IF NOT EXISTS idx_reports_execution_type ON reporting.reports(execution_type);
+CREATE INDEX IF NOT EXISTS idx_reports_next_run_date ON reporting.reports(next_run_date);
+CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reporting.reports(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_destinations_report_id 
-    ON public.report_distribution_destinations(report_id);
+    ON reporting.report_distribution_destinations(report_id);
 
 CREATE INDEX IF NOT EXISTS idx_executions_report_id 
-    ON public.executions(report_id);
+    ON reporting.executions(report_id);
 CREATE INDEX IF NOT EXISTS idx_executions_status 
-    ON public.executions(execution_status);
+    ON reporting.executions(execution_status);
 CREATE INDEX IF NOT EXISTS idx_executions_start_time 
-    ON public.executions(start_time DESC);
+    ON reporting.executions(start_time DESC);
 
 
 -- ============================================================
 -- Optional: Verify tables were created
 -- ============================================================
-SELECT 'app_users table created' AS status WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'app_users');
-SELECT 'audit_logs table created' AS status WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'audit_logs');
-SELECT 'db_connection_configs table created' AS status WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'db_connection_configs');
-SELECT 'reports table created' AS status WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'reports');
+SELECT 'app_users table created' AS status WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'reporting' AND table_name = 'app_users');
+SELECT 'audit_logs table created' AS status WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'reporting' AND table_name = 'audit_logs');
+SELECT 'db_connection_configs table created' AS status WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'reporting' AND table_name = 'db_connection_configs');
+SELECT 'reports table created' AS status WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'reporting' AND table_name = 'reports');
 SELECT 'executions table created' AS status 
 WHERE EXISTS (
     SELECT 1 FROM information_schema.tables 
-    WHERE table_schema = 'public' AND table_name = 'executions'
+    WHERE table_schema = 'reporting' AND table_name = 'executions'
 );

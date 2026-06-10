@@ -13,10 +13,12 @@ namespace ARS.Classess.Utils
     public class ReportFetcher
     {
         private readonly AppDbContext _dbContext;
+        private readonly OneDriveUploader _oneDrive;
 
-        public ReportFetcher(AppDbContext dbContext)
+        public ReportFetcher(AppDbContext dbContext, OneDriveUploader oneDrive)
         {
             _dbContext = dbContext;
+            _oneDrive = oneDrive;
         }
 
         public static string BuildExecutionFileName(Report report)
@@ -143,8 +145,9 @@ namespace ARS.Classess.Utils
                 // ═══════════════════════════════════════════════════════════════
                 if (report.EnableEmailDistribution)
                 {
-                    Logger.LogToFile(logPath, logFileName, $"STEP 3: EMAIL DISTRIBUTION");
-                    var emailRecords = await DistributeByEmailAsync(report, result.FilePath, executionName, logPath, logFileName);
+                    Logger.LogToFile(logPath, logFileName, "STEP 3: EMAIL DISTRIBUTION");
+                    var emailRecords = await DistributeByEmailAsync(
+                        report, result.FilePath, executionName, logPath, logFileName);
                     emailsSent.AddRange(emailRecords);
                     Logger.LogToFile(logPath, logFileName,
                         $"STEP 3 [COMPLETED]: {emailRecords.Count(r => r.Status == "sent")}/{emailRecords.Count} emails sent");
@@ -160,7 +163,8 @@ namespace ARS.Classess.Utils
                     {
                         if (dest.DestinationType == "email")
                         {
-                            var emailRecs = await SendToDestinationEmailAsync(dest, result.FilePath, report.OutputFileName, logPath, logFileName);
+                            var emailRecs = await SendToDestinationEmailAsync(
+                                dest, result.FilePath, report.OutputFileName, logPath, logFileName);
                             emailsSent.AddRange(emailRecs);
                         }
                         else if (dest.DestinationType == "file")
@@ -299,8 +303,12 @@ namespace ARS.Classess.Utils
             return record;
         }
 
-        private async Task<List<EmailSentRecord>> DistributeByEmailAsync(Report report,
-            string attachmentPath, string executionName, string logPath, string logFileName)
+        private async Task<List<EmailSentRecord>> DistributeByEmailAsync(
+     Report report,
+     string attachmentPath,
+     string executionName,
+     string logPath,
+     string logFileName)
         {
             var records = new List<EmailSentRecord>();
             var recipients = new List<string>();
@@ -308,18 +316,26 @@ namespace ARS.Classess.Utils
             if (!string.IsNullOrWhiteSpace(report.EmailToRecipients))
                 recipients.AddRange(report.EmailToRecipients.Split(',', StringSplitOptions.RemoveEmptyEntries));
 
-           
+            // ── Upload to OneDrive once, share with all recipients ──────────────
+            string linkOrFallback = attachmentPath; // fallback: use file path if upload fails
+            Logger.LogToFile(logPath, logFileName, "Uploading report to OneDrive...");
+
+            var uploadResult = await _oneDrive.UploadAndShareAsync(attachmentPath);
+            if (uploadResult.Success)
+            {
+                linkOrFallback = uploadResult.Url!;
+                Logger.LogToFile(logPath, logFileName, $"OneDrive upload succeeded: {linkOrFallback}");
+            }
+            else
+            {
+                Logger.LogToFile(logPath, logFileName, $"OneDrive upload failed (using file path fallback): {uploadResult.Message}");
+            }
 
             int id = 1;
             foreach (var email in recipients.Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)))
             {
                 Logger.LogToFile(logPath, logFileName, $"Distributing to email {email}");
-                var record = new EmailSentRecord
-                {
-                    Id = id++,
-                    Email = email,
-                    Status = "pending"
-                };
+                var record = new EmailSentRecord { Id = id++, Email = email, Status = "pending" };
 
                 try
                 {
@@ -327,19 +343,11 @@ namespace ARS.Classess.Utils
                         .Replace("{{reportName}}", report.Name)
                         .Replace("{{date}}", DateTime.Now.ToString("yyyy-MM-dd"));
 
-                    string body = report.EmailBodyTemplate ?? "Please find the attached report.";
+                    string body = (report.EmailBodyTemplate ?? "Please find the attached report.")
+                        + $"\n\nDownload link: {linkOrFallback}";
 
-                    body = body + "\\n" + attachmentPath;
-
-                    bool result = await EmailSender.SendEmail(email, subject, body);
-                    if (result == false)
-                    {
-                        record.Status = "failed";
-                    }
-                    else
-                    {
-                        record.Status = "sent";
-                    }
+                    bool sent = await EmailSender.SendEmail(email, subject, body);
+                    record.Status = sent ? "sent" : "failed";
                 }
                 catch (Exception ex)
                 {
@@ -353,34 +361,51 @@ namespace ARS.Classess.Utils
             return records;
         }
 
+
         private async Task<List<EmailSentRecord>> SendToDestinationEmailAsync(
-            ReportDistributionDestination dest, string attachmentPath, string executionName, string logPath, string logFileName)
+     ReportDistributionDestination dest,
+     string attachmentPath,
+     string executionName,
+     string logPath,
+     string logFileName)
         {
             var records = new List<EmailSentRecord>();
-           
-
             var recipients = new List<string>();
+
             if (!string.IsNullOrWhiteSpace(dest.EmailTo))
                 recipients.AddRange(dest.EmailTo.Split(',', StringSplitOptions.RemoveEmptyEntries));
+
+            // ── Upload to OneDrive once for this destination ─────────────────────
+            string linkOrFallback = attachmentPath;
+            Logger.LogToFile(logPath, logFileName, $"Uploading report to OneDrive for destination '{dest.EmailSubject}'...");
+
+            var uploadResult = await _oneDrive.UploadAndShareAsync(attachmentPath);
+            if (uploadResult.Success)
+            {
+                linkOrFallback = uploadResult.Url!;
+                Logger.LogToFile(logPath, logFileName, $"OneDrive upload succeeded: {linkOrFallback}");
+            }
+            else
+            {
+                Logger.LogToFile(logPath, logFileName, $"OneDrive upload failed (using file path fallback): {uploadResult.Message}");
+            }
 
             int id = 1;
             foreach (var email in recipients.Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)))
             {
-                Logger.LogToFile(logPath, logFileName, $"Sending Mail to {email}");
-                var record = new EmailSentRecord
-                {
-                    Id = id++,
-                    Email = email,
-                    Status = "pending"
-                };
+                Logger.LogToFile(logPath, logFileName, $"Sending mail to {email}");
+                var record = new EmailSentRecord { Id = id++, Email = email, Status = "pending" };
 
                 try
                 {
-                    string body = dest.EmailBody ?? "Please find the attached report.";
-                    body = body + "\\n" + attachmentPath;
-                    await EmailSender.SendEmail(email,
+                    string body = (dest.EmailBody ?? "Please find the attached report.")
+                        + $"\n\nDownload link: {linkOrFallback}";
+
+                    await EmailSender.SendEmail(
+                        email,
                         dest.EmailSubject ?? $"Report: {executionName}",
                         body);
+
                     record.Status = "sent";
                 }
                 catch (Exception ex)
@@ -394,6 +419,9 @@ namespace ARS.Classess.Utils
 
             return records;
         }
+
+
+
 
         private async Task<FileSentRecord> SaveToDestinationFileAsync( Report report,
       ReportDistributionDestination dest, string sourceFilePath, string logpath, string logFileName)

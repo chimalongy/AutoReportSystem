@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ARS.Data;
+using ARS.Models;
 
 namespace ARS.Classess.Utils
 {
@@ -14,14 +15,15 @@ namespace ARS.Classess.Utils
         {
             try
             {
-                int nextId = 1;
-                if (await db.AuditLogs.AnyAsync())
-                    nextId = await db.AuditLogs.MaxAsync(a => a.Id) + 1;
+                // Get schema from EF Core model metadata (reads from AppDbContext's OnModelCreating)
+                var schema = db.Model
+                    .FindEntityType(typeof(AuditLog))!
+                    .GetSchema() ?? "public";
 
                 await db.Database.ExecuteSqlRawAsync(
-                    @"INSERT INTO public.audit_logs (id, event, eventdate, ipaddress, pageurl, userid)
-                      VALUES ({0}, {1}, {2}, {3}, {4}, {5})",
-                    nextId,
+                    $@"
+                    INSERT INTO {schema}.audit_logs (event, eventdate, ipaddress, pageurl, userid)
+                    VALUES ({{0}}, {{1}}, {{2}}, {{3}}, {{4}})",
                     eventName,
                     DateTime.UtcNow,
                     ipAddress ?? (object)DBNull.Value,

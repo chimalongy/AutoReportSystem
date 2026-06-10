@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ARS.Models
 {
-    [Table("executions", Schema = "public")]
+    [Table("executions")]
     public class Execution
     {
         [Key]
