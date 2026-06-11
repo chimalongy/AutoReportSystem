@@ -1,7 +1,16 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\dell\\source\\repos\\ARS\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{089100B1-113F-4E66-888A-E83F3999EAFD}|Solution Items{089100B1-113F-4E66-888A-E83F3999EAFD}|C:\\Users\\dell\\source\\repos\\ARS\\building.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{089100B1-113F-4E66-888A-E83F3999EAFD}|Solution Items{089100B1-113F-4E66-888A-E83F3999EAFD}|solutionrelative:building.txt||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\ars\\classess\\utils\\onedriveuploader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:classess\\utils\\onedriveuploader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,11 +18,37 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "building.txt",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\building.txt",
+              "RelativeDocumentMoniker": "building.txt",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\building.txt",
+              "RelativeToolTip": "building.txt",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
+              "WhenOpened": "2026-06-10T21:36:32.747Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "OneDriveUploader.cs",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\ARS\\Classess\\Utils\\OneDriveUploader.cs",
+              "RelativeDocumentMoniker": "Classess\\Utils\\OneDriveUploader.cs",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\ARS\\Classess\\Utils\\OneDriveUploader.cs",
+              "RelativeToolTip": "Classess\\Utils\\OneDriveUploader.cs",
+              "ViewState": "AgIAALYAAAAAAAAAAAAQwMIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-10T21:13:54.893Z",
+              "EditorCaption": ""
             }
           ]
         }

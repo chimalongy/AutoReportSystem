@@ -51,17 +51,9 @@
           "framework": "net8.0",
           "targetAlias": "net8.0",
           "dependencies": {
-            "Azure.Identity": {
-              "target": "Package",
-              "version": "[1.21.0, )"
-            },
             "BCrypt.Net-Next": {
               "target": "Package",
               "version": "[4.0.3, )"
-            },
-            "Microsoft.Graph": {
-              "target": "Package",
-              "version": "[6.2.0, )"
             },
             "Npgsql": {
               "target": "Package",

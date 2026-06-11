@@ -5,10 +5,6 @@
       "PackagePath": "staticwebassets\\ARS.bundle.scp.css"
     },
     {
-      "Id": "C:\\Users\\dell\\source\\repos\\ARS\\wwwroot\\css\\app.css",
-      "PackagePath": "staticwebassets\\css\\app.css"
-    },
-    {
       "Id": "C:\\Users\\dell\\source\\repos\\ARS\\wwwroot\\css\\site.css",
       "PackagePath": "staticwebassets\\css\\site.css"
     },

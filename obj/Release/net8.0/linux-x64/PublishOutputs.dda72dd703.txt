@@ -1,0 +1,9 @@
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\appsettings.Development.json
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\appsettings.json
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\dotnet-tools.json
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\global.json
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\package-lock.json
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\package.json
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\ARS.pdb
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\wwwroot\css\app.css
+C:\Users\dell\source\repos\ARS\bin\Release\net8.0\linux-x64\publish\ARS
