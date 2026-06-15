@@ -248,6 +248,69 @@ namespace ARS.Controllers
             return Json(result);
         }
 
+
+        [HttpPost]
+        [Route("Dashboard/Settings/Users/ResetPassword/{id:int}")]
+        [Authorize(Roles = "Super Admin,Admin")]
+        public async Task<IActionResult> UsersResetPassword(int id)
+        {
+            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
+            // Only Super Admin can reset Admin passwords
+            var targetUser = await _db.AppUsers.FindAsync(id);
+            if (targetUser is null)
+                return NotFound(new { message = "User not found." });
+
+            if (targetUser.Role?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true &&
+                !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Only Super Admin can reset Admin passwords." });
+            }
+
+            var defaultPassword = _config["DefaultPassword"];
+            if (string.IsNullOrWhiteSpace(defaultPassword))
+                return BadRequest(new { message = "Default password is not configured." });
+
+            targetUser.Password = BCrypt.Net.BCrypt.HashPassword(defaultPassword);
+            await _db.SaveChangesAsync();
+
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var email = User.FindFirstValue(ClaimTypes.Email);
+
+            await AuditLogger.LogAsync(
+                db: _db,
+                eventName: $"{email} - RESET PASSWORD FOR USER WITH EMAIL - {targetUser.Email}",
+                userId: userId,
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+                pageUrl: HttpContext.Request.Path
+            );
+
+            try
+            {
+                await EmailSender.SendUserCreationEmail(
+                    address: targetUser.Email,
+                    firstName: targetUser.FirstName,
+                    defaultPassword: defaultPassword);
+            }
+            catch { /* swallow — password is reset regardless */ }
+
+            return Json(new { message = "Password reset successfully." });
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
         // ══════════════════════════════════════════════════════════════════════
         // AUDIT LOGS API
         // ══════════════════════════════════════════════════════════════════════

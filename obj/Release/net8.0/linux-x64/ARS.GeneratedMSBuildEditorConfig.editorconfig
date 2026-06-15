@@ -13,79 +13,79 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = ARS
 build_property.RootNamespace = ARS
-build_property.ProjectDir = C:\Users\dell\source\repos\ARS\
+build_property.ProjectDir = C:\Users\colegeme\source\repos\AutoReportSystem\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 8.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
-build_property.MSBuildProjectDirectory = C:\Users\dell\source\repos\ARS
+build_property.MSBuildProjectDirectory = C:\Users\colegeme\source\repos\AutoReportSystem
 build_property._RazorSourceGeneratorDebug = 
 
-[C:/Users/dell/source/repos/ARS/Views/Auth/Login.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Auth/Login.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQXV0aFxMb2dpbi5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Auth/UpdatePassword.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Auth/UpdatePassword.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQXV0aFxVcGRhdGVQYXNzd29yZC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Dashboard/Databases.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Dashboard/Databases.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRGFzaGJvYXJkXERhdGFiYXNlcy5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Dashboard/Index.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Dashboard/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRGFzaGJvYXJkXEluZGV4LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Dashboard/ReportDetail.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Dashboard/ReportDetail.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRGFzaGJvYXJkXFJlcG9ydERldGFpbC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Dashboard/Reports.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Dashboard/Reports.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRGFzaGJvYXJkXFJlcG9ydHMuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Dashboard/Settings/AuditLogs.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Dashboard/Settings/AuditLogs.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRGFzaGJvYXJkXFNldHRpbmdzXEF1ZGl0TG9ncy5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Dashboard/Settings/Users.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Dashboard/Settings/Users.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRGFzaGJvYXJkXFNldHRpbmdzXFVzZXJzLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Dashboard/Tools/Encryptor.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Dashboard/Tools/Encryptor.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRGFzaGJvYXJkXFRvb2xzXEVuY3J5cHRvci5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Home/Index.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Home/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxJbmRleC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Home/Privacy.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Home/Privacy.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxQcml2YWN5LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Shared/Error.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Shared/Error.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXEVycm9yLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Shared/_DashboardLayout.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Shared/_DashboardLayout.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9EYXNoYm9hcmRMYXlvdXQuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Shared/_ValidationScriptsPartial.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Shared/_ValidationScriptsPartial.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/_ViewImports.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/_ViewImports.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/_ViewStart.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/_ViewStart.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdTdGFydC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/dell/source/repos/ARS/Views/Shared/_Layout.cshtml]
+[C:/Users/colegeme/source/repos/AutoReportSystem/Views/Shared/_Layout.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9MYXlvdXQuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = b-60mgpf08h0

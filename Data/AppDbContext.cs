@@ -20,6 +20,7 @@ namespace ARS.Data
         public DbSet<Report> Reports { get; set; } = null!;
         public DbSet<ReportDistributionDestination> ReportDistributionDestinations { get; set; } = null!;
         public DbSet<Execution> Executions { get; set; } = null!;
+        public DbSet<DownloadToken> DownloadTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1439,7 +1439,8 @@
     // EDIT REPORT MODAL
     // ══════════════════════════════════════════════════════════════════════
 
-    function openEditModal(reportId) {
+  function openEditModal(reportId) {
+    try {
         const report = allReports.find(r => r.id === reportId);
         if (!report) return;
 
@@ -1449,8 +1450,9 @@
         document.getElementById('editQuery').value = report.query || '';
         document.getElementById('editOutputFileName').value = report.outputFileName || '';
         document.getElementById('editOutputFormat').value = report.outputFormat || 'csv';
-         document.getElementById('editMaxRowsPerSheet').value = report.maxRowsPerSheet || '1048576';
-        // Execution type
+        document.getElementById('editMaxRowsPerSheet').value = report.maxRowsPerSheet || '1048576';
+
+        // ── Execution type ──
         setEditExecType(report.executionType || 'single');
 
         if (report.executionType === 'single') {
@@ -1466,95 +1468,157 @@
         } else if (report.executionType === 'scheduled') {
             const freq = report.scheduleFrequency || '';
             setEditFrequency(freq);
+
             if (freq === 'daily' && report.scheduleTime) {
-                document.getElementById('editDailyTime').value = report.scheduleTime.substring(0,5);
+                document.getElementById('editDailyTime').value = report.scheduleTime.substring(0, 5);
             }
+
             if (freq === 'weekly') {
-                editSelectedDays = report.scheduleDaysOfWeek ? JSON.parse(report.scheduleDaysOfWeek) : [];
+                editSelectedDays = [];
+                try {
+                    editSelectedDays = report.scheduleDaysOfWeek
+                        ? JSON.parse(report.scheduleDaysOfWeek)
+                        : [];
+                } catch (e) {
+                    editSelectedDays = [];
+                }
                 updateEditDayButtons();
-                if (report.scheduleTime) document.getElementById('editWeeklyTime').value = report.scheduleTime.substring(0,5);
+                if (report.scheduleTime) {
+                    document.getElementById('editWeeklyTime').value = report.scheduleTime.substring(0, 5);
+                }
             }
+
             if (freq === 'monthly') {
                 document.getElementById('editMonthlyDay').value = report.scheduleDayOfMonth || '1';
-                if (report.scheduleTime) document.getElementById('editMonthlyTime').value = report.scheduleTime.substring(0,5);
+                if (report.scheduleTime) {
+                    document.getElementById('editMonthlyTime').value = report.scheduleTime.substring(0, 5);
+                }
             }
+
             if (freq === 'custom_dates') {
-                editCustomDates = report.scheduleCustomDates ? JSON.parse(report.scheduleCustomDates) : [];
+                editCustomDates = [];
+                try {
+                    const parsed = report.scheduleCustomDates
+                        ? JSON.parse(report.scheduleCustomDates)
+                        : [];
+                    // Re-hydrate strings into Date objects
+                    editCustomDates = parsed.map(d => new Date(d)).filter(d => !isNaN(d.getTime()));
+                } catch (e) {
+                    editCustomDates = [];
+                }
                 updateEditCustomDatesChips();
             }
+
             if (freq === 'custom_recurring') {
-                const rec = report.scheduleCustomRecurring ? JSON.parse(report.scheduleCustomRecurring) : [];
-                const list = document.getElementById('editCustomRecurringList');
-                list.innerHTML = rec.length > 0 ? rec.map(item => `
-                    <div class="custom-recurring-row">
-                        <input type="date" class="edit-custom-rec-date px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" value="${formatDateInput(item.date)}" />
-                        <input type="time" class="edit-custom-rec-time px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" value="${item.time.substring(0,5)}" />
-                        <button type="button" onclick="removeEditRecurringRow(this)"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M18 6 6 18M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>`).join('') : `
-                    <div class="custom-recurring-row">
-                        <input type="date" class="edit-custom-rec-date px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" />
-                        <input type="time" class="edit-custom-rec-time px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" value="09:00" />
-                        <button type="button" onclick="removeEditRecurringRow(this)"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M18 6 6 18M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>`;
-            }
+    let rec = [];
+    try {
+        rec = report.scheduleCustomRecurring
+            ? JSON.parse(report.scheduleCustomRecurring)
+            : [];
+    } catch (e) {
+        rec = [];
+    }
+    const list = document.getElementById('editCustomRecurringList');
+    if (rec.length > 0) {
+        list.innerHTML = rec.map(item => {
+            const dateVal = item.date ? formatDateInput(item.date) : '';
+            const timeVal = item.time ? item.time.substring(0, 5) : '09:00';  // ← safe fallback
+            return `
+                <div class="custom-recurring-row">
+                    <input type="date" class="edit-custom-rec-date px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" value="${dateVal}" />
+                    <input type="time" class="edit-custom-rec-time px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" value="${timeVal}" />
+                    <button type="button" onclick="removeEditRecurringRow(this)"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M18 6 6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>`;
+        }).join('');
+    } else {
+        list.innerHTML = `
+            <div class="custom-recurring-row">
+                <input type="date" class="edit-custom-rec-date px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" />
+                <input type="time" class="edit-custom-rec-time px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" value="09:00" />
+                <button type="button" onclick="removeEditRecurringRow(this)"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>`;
+    }
+}
+        
+        
         }
 
-        // ── Load Distribution Data ──
+        // ── Email distribution ──
+        const emailDistToggle = document.getElementById('editEmailDistToggle');
+        const emailConfigSection = document.getElementById('editEmailConfigSection');
+        const enableEmailInput = document.getElementById('editEnableEmailDist');
+
+        // Clear chips first
+        ['editToChips', 'editCcChips', 'editBccChips'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
+        ['editToRecipients', 'editCcRecipients', 'editBccRecipients'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
         if (report.enableEmailDistribution) {
-            document.getElementById('editEmailDistToggle').classList.add('active');
-            document.getElementById('editEnableEmailDist').value = 'true';
-            document.getElementById('editEmailConfigSection').classList.remove('hidden');
-            
+            emailDistToggle.classList.add('active');
+            enableEmailInput.value = 'true';
+            emailConfigSection.classList.remove('hidden');
+
             if (report.emailToRecipients) {
                 report.emailToRecipients.split(',').forEach(e => {
-                    if (e.trim()) addEmailChip(e.trim(), 'editToChips', 'editToRecipients');
+                    const trimmed = e.trim();
+                    if (trimmed) addEmailChip(trimmed, 'editToChips', 'editToRecipients');
                 });
             }
             if (report.emailCcRecipients) {
                 report.emailCcRecipients.split(',').forEach(e => {
-                    if (e.trim()) addEmailChip(e.trim(), 'editCcChips', 'editCcRecipients');
+                    const trimmed = e.trim();
+                    if (trimmed) addEmailChip(trimmed, 'editCcChips', 'editCcRecipients');
                 });
             }
             if (report.emailBccRecipients) {
                 report.emailBccRecipients.split(',').forEach(e => {
-                    if (e.trim()) addEmailChip(e.trim(), 'editBccChips', 'editBccRecipients');
+                    const trimmed = e.trim();
+                    if (trimmed) addEmailChip(trimmed, 'editBccChips', 'editBccRecipients');
                 });
             }
             document.getElementById('editEmailSubject').value = report.emailSubject || '';
             document.getElementById('editEmailBody').value = report.emailBodyTemplate || '';
         } else {
-            document.getElementById('editEmailDistToggle').classList.remove('active');
-            document.getElementById('editEnableEmailDist').value = 'false';
-            document.getElementById('editEmailConfigSection').classList.add('hidden');
-            ['editToChips','editCcChips','editBccChips'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = '';
-            });
+            emailDistToggle.classList.remove('active');
+            enableEmailInput.value = 'false';
+            emailConfigSection.classList.add('hidden');
+            document.getElementById('editEmailSubject').value = '';
+            document.getElementById('editEmailBody').value = '';
         }
 
+        // ── File save ──
+        const fileSaveToggle = document.getElementById('editFileSaveToggle');
+        const fileSaveConfigSection = document.getElementById('editFileSaveConfigSection');
+        const enableFileSaveInput = document.getElementById('editEnableFileSave');
+
         if (report.enableFileSave) {
-            document.getElementById('editFileSaveToggle').classList.add('active');
-            document.getElementById('editEnableFileSave').value = 'true';
-            document.getElementById('editFileSaveConfigSection').classList.remove('hidden');
+            fileSaveToggle.classList.add('active');
+            enableFileSaveInput.value = 'true';
+            fileSaveConfigSection.classList.remove('hidden');
             document.getElementById('editFileSavePath').value = report.fileSavePath || '';
         } else {
-            document.getElementById('editFileSaveToggle').classList.remove('active');
-            document.getElementById('editEnableFileSave').value = 'false';
-            document.getElementById('editFileSaveConfigSection').classList.add('hidden');
+            fileSaveToggle.classList.remove('active');
+            enableFileSaveInput.value = 'false';
+            fileSaveConfigSection.classList.add('hidden');
             document.getElementById('editFileSavePath').value = '';
         }
 
-        // Load destinations
+        // ── Distribution destinations ──
         const destList = document.getElementById('editDestinationsList');
         destList.innerHTML = '';
         if (report.distributionDestinations && report.distributionDestinations.length > 0) {
@@ -1562,25 +1626,35 @@
                 addDestination('edit');
                 const cards = destList.querySelectorAll('.destination-card');
                 const card = cards[cards.length - 1];
-                card.querySelector('select').value = dest.destinationType;
+                if (!card) return;
+                const select = card.querySelector('select');
+                if (select) select.value = dest.destinationType;
                 toggleDestType(card.id, dest.destinationType);
                 if (dest.destinationType === 'email') {
-                    card.querySelector('.dest-to').value = dest.emailTo || '';
-                    card.querySelector('.dest-cc').value = dest.emailCc || '';
-                    card.querySelector('.dest-bcc').value = dest.emailBcc || '';
-                    card.querySelector('.dest-subject').value = dest.emailSubject || '';
-                    card.querySelector('.dest-body').value = dest.emailBody || '';
+                    const toEl = card.querySelector('.dest-to');
+                    const ccEl = card.querySelector('.dest-cc');
+                    const bccEl = card.querySelector('.dest-bcc');
+                    const subjectEl = card.querySelector('.dest-subject');
+                    const bodyEl = card.querySelector('.dest-body');
+                    if (toEl) toEl.value = dest.emailTo || '';
+                    if (ccEl) ccEl.value = dest.emailCc || '';
+                    if (bccEl) bccEl.value = dest.emailBcc || '';
+                    if (subjectEl) subjectEl.value = dest.emailSubject || '';
+                    if (bodyEl) bodyEl.value = dest.emailBody || '';
                 } else {
-                  card.querySelector('.dest-path').value = dest.filePath || '';
-    card.querySelector('.dest-max-rows').value = dest.maxRowsPerSheet || '1048576';
+                    const pathEl = card.querySelector('.dest-path');
+                    if (pathEl) pathEl.value = dest.filePath || '';
                 }
             });
         }
 
         document.getElementById('editModalAlert').classList.add('hidden');
         document.getElementById('editReportModal').classList.add('open');
-    }
 
+    } catch (err) {
+        console.error('openEditModal error:', err);
+    }
+}
     function closeEditModal() {
         document.getElementById('editReportModal').classList.remove('open');
     }
@@ -1672,11 +1746,16 @@
         updateDayButtons();
     }
 
-    function updateDayButtons() {
-        document.querySelectorAll('#weeklySection .day-btn').forEach(btn => {
-            btn.classList.toggle('selected', selectedDays.includes(btn.textContent.trim()));
-        });
-    }
+  function updateDayButtons() {
+    const dayMap = {
+        'Mon': 'Monday', 'Tue': 'Tuesday', 'Wed': 'Wednesday',
+        'Thu': 'Thursday', 'Fri': 'Friday', 'Sat': 'Saturday', 'Sun': 'Sunday'
+    };
+    document.querySelectorAll('#weeklySection .day-btn').forEach(btn => {
+        const fullDay = dayMap[btn.textContent.trim()];
+        btn.classList.toggle('selected', selectedDays.includes(fullDay));
+    });
+}
 
     function toggleEditDay(btn, day) {
         if (editSelectedDays.includes(day)) {
@@ -1687,11 +1766,16 @@
         updateEditDayButtons();
     }
 
-    function updateEditDayButtons() {
-        document.querySelectorAll('#editWeeklySection .day-btn').forEach(btn => {
-            btn.classList.toggle('selected', editSelectedDays.includes(btn.textContent.trim()));
-        });
-    }
+  function updateEditDayButtons() {
+    const dayMap = {
+        'Mon': 'Monday', 'Tue': 'Tuesday', 'Wed': 'Wednesday',
+        'Thu': 'Thursday', 'Fri': 'Friday', 'Sat': 'Saturday', 'Sun': 'Sunday'
+    };
+    document.querySelectorAll('#editWeeklySection .day-btn').forEach(btn => {
+        const fullDay = dayMap[btn.textContent.trim()];
+        btn.classList.toggle('selected', editSelectedDays.includes(fullDay));
+    });
+}
 
     // ══════════════════════════════════════════════════════════════════════
     // CUSTOM DATES

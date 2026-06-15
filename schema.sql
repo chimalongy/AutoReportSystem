@@ -167,6 +167,24 @@ CREATE TABLE IF NOT EXISTS reporting.executions (
 );
 
 
+CREATE TABLE IF NOT EXISTS reporting.download_tokens (
+    id SERIAL PRIMARY KEY,
+    token TEXT NOT NULL UNIQUE,
+    execution_id INTEGER NOT NULL,
+    file_path TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_download_tokens_execution
+        FOREIGN KEY (execution_id)
+        REFERENCES reporting.executions(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_download_tokens_token ON reporting.download_tokens(token);
+CREATE INDEX idx_download_tokens_expires_at ON reporting.download_tokens(expires_at);
+
+
 -- Indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reporting.reports(status);
 CREATE INDEX IF NOT EXISTS idx_reports_execution_type ON reporting.reports(execution_type);

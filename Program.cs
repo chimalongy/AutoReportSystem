@@ -41,7 +41,8 @@ builder.Services.AddQuartzHostedService(q =>
 });
 
 builder.Services.AddScoped<ReportSchedulerService>();
-builder.Services.AddScoped<OneDriveUploader>();
+builder.Services.AddScoped<DownloadTokenStore>();
+builder.Services.AddScoped<DownloadLinkGenerator>();
 builder.Services.AddHostedService<ReportSchedulerStartup>();
 
 

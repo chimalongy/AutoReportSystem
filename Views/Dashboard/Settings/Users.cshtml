@@ -346,8 +346,8 @@
 
     // ── Render table ─────────────────────────────────────────────────────────
     function renderTable(users) {
-        const tbody = document.getElementById('usersTableBody');
-        const countEl = document.getElementById('userCount');
+        const tbody    = document.getElementById('usersTableBody');
+        const countEl  = document.getElementById('userCount');
 
         countEl.textContent = `${users.length} user${users.length !== 1 ? 's' : ''} total`;
 
@@ -362,15 +362,22 @@
         }
 
         tbody.innerHTML = users.map(u => {
-            const fullName   = `${u.firstName || ''} ${u.lastName || ''}`.trim() || '--';
-            const isDisabled = (u.profileStatus || '').toLowerCase() === 'disabled';
+            const fullName         = `${u.firstName || ''} ${u.lastName || ''}`.trim() || '--';
+            const isDisabled       = (u.profileStatus || '').toLowerCase() === 'disabled';
             const isSuperAdminUser = (u.role || '').toLowerCase() === 'super admin';
-            const lastLogin  = u.lastLoginDate
-                ? new Date(u.lastLoginDate).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+
+            const lastLogin = u.lastLoginDate
+                ? new Date(u.lastLoginDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                 : 'Never';
 
-            const canEdit = !isSuperAdminUser || isSuperAdmin;
+            // ── Permission rules ─────────────────────────────────────────────
+            // Super Admin rows get NO action buttons (Edit / Reset PW / Delete).
+            // Only the Disable/Enable toggle is shown for Super Admin rows.
+            // Admin and Support rows get all four buttons.
+            const canEdit   = !isSuperAdminUser;
+            const canReset  = !isSuperAdminUser;
             const canDelete = !isSuperAdminUser;
+            // ────────────────────────────────────────────────────────────────
 
             return `
             <tr class="user-row border-b border-border last:border-0" id="row-${u.id}">
@@ -404,6 +411,7 @@
                 <td class="px-5 py-3.5 text-text-muted text-xs hidden lg:table-cell">${lastLogin}</td>
                 <td class="px-5 py-3.5 text-right">
                     <div class="flex items-center justify-end gap-1">
+
                         ${canEdit ? `
                         <button onclick="openEditModal(${u.id})"
                                 title="Edit user"
@@ -413,6 +421,17 @@
                             Edit
                         </button>
                         ` : ''}
+
+                        ${canReset ? `
+                        <button onclick="confirmReset(${u.id}, '${escHtml(fullName)}')"
+                                title="Reset password to default"
+                                class="text-xs px-2.5 py-1.5 rounded-lg border border-border
+                                       text-text-secondary hover:border-violet-300 hover:text-violet-600
+                                       hover:bg-violet-50 transition-colors">
+                            Reset PW
+                        </button>
+                        ` : ''}
+
                         <button onclick="confirmDisable(${u.id}, ${isDisabled})"
                                 title="${isDisabled ? 'Enable' : 'Disable'} user"
                                 class="text-xs px-2.5 py-1.5 rounded-lg border transition-colors
@@ -421,6 +440,7 @@
                                         : 'border-border text-text-secondary hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50'}">
                             ${isDisabled ? 'Enable' : 'Disable'}
                         </button>
+
                         ${canDelete ? `
                         <button onclick="confirmDelete(${u.id}, '${escHtml(fullName)}')"
                                 title="Delete user"
@@ -430,6 +450,7 @@
                             Delete
                         </button>
                         ` : ''}
+
                     </div>
                 </td>
             </tr>`;
@@ -439,15 +460,15 @@
     // ── Escape HTML helper ───────────────────────────────────────────────────
     function escHtml(str) {
         return String(str)
-            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     // ── Confirm modal helpers ────────────────────────────────────────────────
     function openConfirm({ icon, iconBg, title, message, btnColor, action }) {
         document.getElementById('confirmIcon').className =
             `w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-4 ${iconBg}`;
-        document.getElementById('confirmIcon').innerHTML = icon;
+        document.getElementById('confirmIcon').innerHTML  = icon;
         document.getElementById('confirmTitle').textContent   = title;
         document.getElementById('confirmMessage').textContent = message;
 
@@ -462,6 +483,33 @@
     function closeConfirm() {
         document.getElementById('confirmModal').classList.remove('open');
         pendingAction = null;
+    }
+
+    // ── Reset Password ───────────────────────────────────────────────────────
+    function confirmReset(userId, name) {
+        openConfirm({
+            icon: `<svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                   </svg>`,
+            iconBg:   'bg-violet-50',
+            title:    'Reset Password',
+            message:  `Reset ${name}'s password back to the system default? They will receive an email with their new credentials.`,
+            btnColor: 'bg-violet-600 hover:bg-violet-700',
+            action:   () => resetPassword(userId)
+        });
+    }
+
+    async function resetPassword(userId) {
+        closeConfirm();
+        try {
+            const res  = await fetch(`/Dashboard/Settings/Users/ResetPassword/${userId}`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to reset password');
+            showAlert('Password reset successfully. A notification email has been sent.', 'success');
+        } catch (err) {
+            showAlert(err.message || 'Failed to reset password. Please try again.', 'error');
+        }
     }
 
     // ── Delete ───────────────────────────────────────────────────────────────
@@ -534,7 +582,7 @@
 
     // ── Add User Modal ───────────────────────────────────────────────────────
     function openAddModal() {
-        ['newFirstName','newLastName','newEmail','newDepartment'].forEach(id => {
+        ['newFirstName', 'newLastName', 'newEmail', 'newDepartment'].forEach(id => {
             document.getElementById(id).value = '';
         });
         document.getElementById('newRole').value = 'Support';
@@ -597,12 +645,12 @@
         const user = allUsers.find(u => u.id === userId);
         if (!user) return;
 
-        document.getElementById('editUserId').value = userId;
-        document.getElementById('editFirstName').value = user.firstName || '';
-        document.getElementById('editLastName').value = user.lastName || '';
-        document.getElementById('editEmail').value = user.email || '';
+        document.getElementById('editUserId').value     = userId;
+        document.getElementById('editFirstName').value  = user.firstName  || '';
+        document.getElementById('editLastName').value   = user.lastName   || '';
+        document.getElementById('editEmail').value      = user.email      || '';
         document.getElementById('editDepartment').value = user.department || '';
-        document.getElementById('editRole').value = user.role || 'Support';
+        document.getElementById('editRole').value       = user.role       || 'Support';
         document.getElementById('editModalAlert').classList.add('hidden');
         document.getElementById('editUserModal').classList.add('open');
     }
@@ -656,7 +704,7 @@
 
     // ── Alert helpers ────────────────────────────────────────────────────────
     function showAlert(message, type) {
-        const el = document.getElementById('alertArea');
+        const el        = document.getElementById('alertArea');
         const isSuccess = type === 'success';
         el.className = `mb-4 px-4 py-3 rounded-xl text-sm border flex items-center gap-2
             ${isSuccess
@@ -689,25 +737,25 @@
         el.classList.remove('hidden');
     }
 
-    // Close modals on backdrop click
-    document.getElementById('userModal').addEventListener('click', function(e) {
+    // ── Close modals on backdrop click ───────────────────────────────────────
+    document.getElementById('userModal').addEventListener('click', function (e) {
         if (e.target === this) closeAddModal();
     });
-    document.getElementById('editUserModal').addEventListener('click', function(e) {
+    document.getElementById('editUserModal').addEventListener('click', function (e) {
         if (e.target === this) closeEditModal();
     });
-    document.getElementById('confirmModal').addEventListener('click', function(e) {
+    document.getElementById('confirmModal').addEventListener('click', function (e) {
         if (e.target === this) closeConfirm();
     });
 
-    // Enter key in modal fields
-    ['newFirstName','newLastName','newEmail','newDepartment'].forEach(id => {
+    // ── Enter key in add modal fields ────────────────────────────────────────
+    ['newFirstName', 'newLastName', 'newEmail', 'newDepartment'].forEach(id => {
         document.getElementById(id).addEventListener('keydown', e => {
             if (e.key === 'Enter') saveUser();
         });
     });
 
-    // Load on page ready
+    // ── Init ─────────────────────────────────────────────────────────────────
     loadUsers();
 </script>
 }
