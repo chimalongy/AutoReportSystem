@@ -33,6 +33,7 @@ namespace ARS.Data
             modelBuilder.Entity<Report>().ToTable("reports", schema);
             modelBuilder.Entity<ReportDistributionDestination>().ToTable("report_distribution_destinations", schema);
             modelBuilder.Entity<Execution>().ToTable("executions", schema);
+            modelBuilder.Entity<DownloadToken>().ToTable("download_tokens", schema);
 
             modelBuilder.Entity<AppUser>()
                 .HasIndex(u => u.Email)

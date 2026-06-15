@@ -3,24 +3,8 @@
   "WorkspaceRootPath": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\colegeme\\source\\repos\\autoreportsystem\\views\\auth\\updatepassword.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:views\\auth\\updatepassword.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\colegeme\\source\\repos\\autoreportsystem\\views\\dashboard\\settings\\users.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:views\\dashboard\\settings\\users.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\colegeme\\source\\repos\\autoreportsystem\\controllers\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:controllers\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\colegeme\\source\\repos\\autoreportsystem\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\colegeme\\source\\repos\\autoreportsystem\\classess\\utils\\globalfunctions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:classess\\utils\\globalfunctions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\colegeme\\source\\repos\\autoreportsystem\\data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -35,63 +19,15 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "UpdatePassword.cshtml",
-              "DocumentMoniker": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Views\\Auth\\UpdatePassword.cshtml",
-              "RelativeDocumentMoniker": "Views\\Auth\\UpdatePassword.cshtml",
-              "ToolTip": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Views\\Auth\\UpdatePassword.cshtml",
-              "RelativeToolTip": "Views\\Auth\\UpdatePassword.cshtml",
-              "ViewState": "AgIAAIkAAAAAAAAAAAAuwJsAAAA8AAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-06-11T16:40:08.047Z",
+              "Title": "AppDbContext.cs",
+              "DocumentMoniker": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Data\\AppDbContext.cs",
+              "RelativeDocumentMoniker": "Data\\AppDbContext.cs",
+              "ToolTip": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Data\\AppDbContext.cs",
+              "RelativeToolTip": "Data\\AppDbContext.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABMAAAA7AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-15T12:46:34.486Z",
               "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\appsettings.json",
-              "RelativeDocumentMoniker": "appsettings.json",
-              "ToolTip": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\appsettings.json",
-              "RelativeToolTip": "appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAiAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-06-11T15:42:16.42Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "GlobalFunctions.cs",
-              "DocumentMoniker": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Classess\\Utils\\GlobalFunctions.cs",
-              "RelativeDocumentMoniker": "Classess\\Utils\\GlobalFunctions.cs",
-              "ToolTip": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Classess\\Utils\\GlobalFunctions.cs",
-              "RelativeToolTip": "Classess\\Utils\\GlobalFunctions.cs",
-              "ViewState": "AgIAAKwAAAAAAAAAAAAowNcAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-06-11T15:29:22.864Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "Users.cshtml",
-              "DocumentMoniker": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Views\\Dashboard\\Settings\\Users.cshtml",
-              "RelativeDocumentMoniker": "Views\\Dashboard\\Settings\\Users.cshtml",
-              "ToolTip": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Views\\Dashboard\\Settings\\Users.cshtml",
-              "RelativeToolTip": "Views\\Dashboard\\Settings\\Users.cshtml",
-              "ViewState": "AgIAANACAAAAAAAAAAAuwOMCAABQAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-06-11T15:28:11.316Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "DashboardController.cs",
-              "DocumentMoniker": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Controllers\\DashboardController.cs",
-              "RelativeDocumentMoniker": "Controllers\\DashboardController.cs",
-              "ToolTip": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Controllers\\DashboardController.cs",
-              "RelativeToolTip": "Controllers\\DashboardController.cs",
-              "ViewState": "AgIAANYAAAAAAAAAAAAgwCsBAAAJAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-06-11T15:11:09.771Z"
             }
           ]
         }

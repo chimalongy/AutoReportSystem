@@ -320,8 +320,19 @@ namespace ARS.Classess.Utils
                 recipients.AddRange(report.EmailToRecipients.Split(',', StringSplitOptions.RemoveEmptyEntries));
 
 
-            string linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(7));
-            Logger.LogToFile(logPath, logFileName, $"Download link generated: {linkOrFallback}");
+            string linkOrFallback = "";
+            try {
+                linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(7));
+                Logger.LogToFile(logPath, logFileName, $"Download link generated: {linkOrFallback}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogToFile(logPath, logFileName, $"Error when generating download link {ex.ToString()}");
+                 
+                return records;
+
+            }
+           
             int id = 1;
             foreach (var email in recipients.Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)))
             {
@@ -366,11 +377,19 @@ namespace ARS.Classess.Utils
 
             if (!string.IsNullOrWhiteSpace(dest.EmailTo))
                 recipients.AddRange(dest.EmailTo.Split(',', StringSplitOptions.RemoveEmptyEntries));
+            string linkOrFallback = "";
+            try {
+                // ── Upload to OneDrive once for this destination ─────────────────────
+                linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(7));
+                Logger.LogToFile(logPath, logFileName, $"Download link generated: {linkOrFallback}");
 
-            // ── Upload to OneDrive once for this destination ─────────────────────
-            string linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(7));
-            Logger.LogToFile(logPath, logFileName, $"Download link generated: {linkOrFallback}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogToFile(logPath, logFileName, $"Error Generating Download Link: {ex.ToString}");
+                return records;
 
+            }
             int id = 1;
             foreach (var email in recipients.Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)))
             {
