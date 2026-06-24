@@ -10,7 +10,13 @@ namespace ARS.Classess.Utils
     {
         private readonly AppDbContext _db;
 
-        public DownloadTokenStore(AppDbContext db) => _db = db;
+        private readonly int _tokenExpiryDays;
+
+        public DownloadTokenStore(AppDbContext db, IConfiguration configuration)
+        {
+            _db = db;
+            _tokenExpiryDays = configuration.GetValue<int>("DownloadSettings:TokenExpiryDays", 7);
+        }
 
         public async Task<string> GenerateAsync(int executionId, string filePath, TimeSpan? ttl = null)
         {
@@ -22,7 +28,7 @@ namespace ARS.Classess.Utils
                 Token = token,
                 ExecutionId = executionId,
                 FilePath = filePath,
-                ExpiresAt = DateTime.UtcNow.Add(ttl ?? TimeSpan.FromDays(7))
+                ExpiresAt = DateTime.UtcNow.Add(ttl ?? TimeSpan.FromDays(_tokenExpiryDays))
             });
 
             await _db.SaveChangesAsync();

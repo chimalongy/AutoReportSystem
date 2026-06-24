@@ -346,12 +346,15 @@
 
     // ── Render table ─────────────────────────────────────────────────────────
     function renderTable(users) {
-        const tbody    = document.getElementById('usersTableBody');
-        const countEl  = document.getElementById('userCount');
+        const tbody   = document.getElementById('usersTableBody');
+        const countEl = document.getElementById('userCount');
 
-        countEl.textContent = `${users.length} user${users.length !== 1 ? 's' : ''} total`;
+        // ── Filter out Super Admin users from the visible table ──
+        const visibleUsers = users.filter(u => (u.role || '').toLowerCase() !== 'super admin');
 
-        if (users.length === 0) {
+        countEl.textContent = `${visibleUsers.length} user${visibleUsers.length !== 1 ? 's' : ''} total`;
+
+        if (visibleUsers.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7" class="text-center py-12 text-text-muted text-xs">
@@ -361,23 +364,13 @@
             return;
         }
 
-        tbody.innerHTML = users.map(u => {
-            const fullName         = `${u.firstName || ''} ${u.lastName || ''}`.trim() || '--';
-            const isDisabled       = (u.profileStatus || '').toLowerCase() === 'disabled';
-            const isSuperAdminUser = (u.role || '').toLowerCase() === 'super admin';
+        tbody.innerHTML = visibleUsers.map(u => {
+            const fullName   = `${u.firstName || ''} ${u.lastName || ''}`.trim() || '--';
+            const isDisabled = (u.profileStatus || '').toLowerCase() === 'disabled';
 
             const lastLogin = u.lastLoginDate
                 ? new Date(u.lastLoginDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                 : 'Never';
-
-            // ── Permission rules ─────────────────────────────────────────────
-            // Super Admin rows get NO action buttons (Edit / Reset PW / Delete).
-            // Only the Disable/Enable toggle is shown for Super Admin rows.
-            // Admin and Support rows get all four buttons.
-            const canEdit   = !isSuperAdminUser;
-            const canReset  = !isSuperAdminUser;
-            const canDelete = !isSuperAdminUser;
-            // ────────────────────────────────────────────────────────────────
 
             return `
             <tr class="user-row border-b border-border last:border-0" id="row-${u.id}">
@@ -396,7 +389,7 @@
                 <td class="px-5 py-3.5 text-text-muted hidden md:table-cell">${escHtml(u.department || '--')}</td>
                 <td class="px-5 py-3.5 hidden sm:table-cell">
                     <span class="text-xs px-2 py-0.5 rounded-full border
-                        ${u.role === 'Admin' || u.role === 'Super Admin'
+                        ${u.role === 'Admin'
                             ? 'bg-blue-50 text-blue-600 border-blue-100'
                             : 'bg-surface text-text-muted border-border'}">
                         ${escHtml(u.role || 'Support')}
@@ -412,7 +405,6 @@
                 <td class="px-5 py-3.5 text-right">
                     <div class="flex items-center justify-end gap-1">
 
-                        ${canEdit ? `
                         <button onclick="openEditModal(${u.id})"
                                 title="Edit user"
                                 class="text-xs px-2.5 py-1.5 rounded-lg border border-border
@@ -420,9 +412,7 @@
                                        hover:bg-blue-50 transition-colors">
                             Edit
                         </button>
-                        ` : ''}
 
-                        ${canReset ? `
                         <button onclick="confirmReset(${u.id}, '${escHtml(fullName)}')"
                                 title="Reset password to default"
                                 class="text-xs px-2.5 py-1.5 rounded-lg border border-border
@@ -430,7 +420,6 @@
                                        hover:bg-violet-50 transition-colors">
                             Reset PW
                         </button>
-                        ` : ''}
 
                         <button onclick="confirmDisable(${u.id}, ${isDisabled})"
                                 title="${isDisabled ? 'Enable' : 'Disable'} user"
@@ -441,7 +430,6 @@
                             ${isDisabled ? 'Enable' : 'Disable'}
                         </button>
 
-                        ${canDelete ? `
                         <button onclick="confirmDelete(${u.id}, '${escHtml(fullName)}')"
                                 title="Delete user"
                                 class="text-xs px-2.5 py-1.5 rounded-lg border border-border
@@ -449,7 +437,6 @@
                                        hover:bg-red-50 transition-colors">
                             Delete
                         </button>
-                        ` : ''}
 
                     </div>
                 </td>
@@ -534,8 +521,9 @@
             if (!res.ok) throw new Error();
             document.getElementById(`row-${userId}`)?.remove();
             allUsers = allUsers.filter(u => u.id !== userId);
+            const visibleCount = allUsers.filter(u => (u.role || '').toLowerCase() !== 'super admin').length;
             document.getElementById('userCount').textContent =
-                `${allUsers.length} user${allUsers.length !== 1 ? 's' : ''} total`;
+                `${visibleCount} user${visibleCount !== 1 ? 's' : ''} total`;
             showAlert('User deleted successfully.', 'success');
         } catch {
             showAlert('Failed to delete user. Please try again.', 'error');

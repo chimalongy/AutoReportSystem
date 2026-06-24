@@ -28,6 +28,7 @@ namespace ARS.Jobs
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var linkGenerator = scope.ServiceProvider.GetRequiredService<DownloadLinkGenerator>();
             var reportId = context.MergedJobDataMap.GetInt("reportId");
+            var configiration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
             var report = await db.Reports
                 .Include(r => r.DbConnectionConfig)
@@ -48,7 +49,7 @@ namespace ARS.Jobs
 
             _logger.LogInformation("ReportExecutionJob: Executing report {ReportId} - {ReportName}", reportId, report.Name);
 
-            var fetcher = new ReportFetcher(db, linkGenerator);
+            var fetcher = new ReportFetcher(db, linkGenerator, configiration);
             await fetcher.ExecuteReportAsync(report);
         }
     }

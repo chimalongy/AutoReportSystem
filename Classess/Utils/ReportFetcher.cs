@@ -6,6 +6,7 @@ using Oracle.ManagedDataAccess.Client;
 using SpreadCheetah;
 using SpreadCheetah.Worksheets;
 using System;
+using System.Configuration;
 using System.Data.Common;
 using System.Text;
 using System.Text.Json;
@@ -16,11 +17,13 @@ namespace ARS.Classess.Utils
     {
         private readonly AppDbContext _dbContext;
         private readonly DownloadLinkGenerator _linkGenerator;
+        private readonly int _tokenExpiryDays;
 
-        public ReportFetcher(AppDbContext dbContext, DownloadLinkGenerator linkGenerator)
+        public ReportFetcher(AppDbContext dbContext, DownloadLinkGenerator linkGenerator, IConfiguration configuration)
         {
             _dbContext = dbContext;
             _linkGenerator = linkGenerator;
+            _tokenExpiryDays = configuration.GetValue<int>("DownloadSettings:TokenExpiryDays", 7);  // ← read from config
         }
 
         public static string BuildExecutionFileName(Report report)
@@ -322,7 +325,7 @@ namespace ARS.Classess.Utils
 
             string linkOrFallback = "";
             try {
-                linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(7));
+                linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(_tokenExpiryDays));
                 Logger.LogToFile(logPath, logFileName, $"Download link generated: {linkOrFallback}");
             }
             catch (Exception ex)
@@ -349,7 +352,17 @@ namespace ARS.Classess.Utils
                         + $"\n\nDownload link: {linkOrFallback}";
 
                     bool sent = await EmailSender.SendEmail(email, subject, body);
-                    record.Status = sent ? "sent" : "failed";
+                    if (sent)
+                    {
+                        record.Status = "sent";
+                        Logger.LogToFile(logPath, logFileName, $"EMAIL SENDING TO EMAIL {email} returned: {sent.ToString()}");
+                    }
+                    else
+                    {
+                        record.Status = "failed";
+                        record.ErrorMessage = $"Email API returned false for {email}";
+                        Logger.LogToFile(logPath, logFileName, $"Email API returned false for {email}");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -380,13 +393,14 @@ namespace ARS.Classess.Utils
             string linkOrFallback = "";
             try {
                 // ── Upload to OneDrive once for this destination ─────────────────────
-                linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(7));
+                linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(_tokenExpiryDays));
                 Logger.LogToFile(logPath, logFileName, $"Download link generated: {linkOrFallback}");
 
             }
             catch (Exception ex)
             {
-                Logger.LogToFile(logPath, logFileName, $"Error Generating Download Link: {ex.ToString}");
+           
+                Logger.LogToFile(logPath, logFileName, $"Error Generating Download Link: {ex.ToString()}");
                 return records;
 
             }
@@ -401,12 +415,21 @@ namespace ARS.Classess.Utils
                     string body = (dest.EmailBody ?? "Please find the attached report.")
                         + $"\n\nDownload link: {linkOrFallback}";
 
-                    await EmailSender.SendEmail(
+                   bool sent =  await EmailSender.SendEmail(
                         email,
                         dest.EmailSubject ?? $"Report: {executionName}",
                         body);
-
-                    record.Status = "sent";
+                    if (sent)
+                    {
+                        record.Status = "sent";
+                        Logger.LogToFile(logPath, logFileName, $"EMAIL SENDING TO EMAIL {email} returned: {sent.ToString()}");
+                    }
+                    else
+                    {
+                        record.Status = "failed";
+                        record.ErrorMessage = $"Email API returned false for {email}";
+                        Logger.LogToFile(logPath, logFileName, $"Email API returned false for {email}");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -928,38 +951,5 @@ namespace ARS.Classess.Utils
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // EXPORT RESULT
-    // ══════════════════════════════════════════════════════════════════════
-    public class ExportResult
-    {
-        public bool Success { get; set; }
-        public string? ErrorMessage { get; set; }
-        public string? FilePath { get; set; }
-        public long TotalRows { get; set; }
-        public int SheetCount { get; set; }
-
-        public static ExportResult Ok(string filePath, long totalRows, int sheetCount = 1)
-            => new() { Success = true, FilePath = filePath, TotalRows = totalRows, SheetCount = sheetCount };
-
-        public static ExportResult Fail(string error)
-            => new() { Success = false, ErrorMessage = error };
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // EMAIL SERVICE (stub — replace with your implementation)
-    // ══════════════════════════════════════════════════════════════════════
-    public class EmailService
-    {
-        public async Task SendAsync(string to, string subject, string body, string? attachmentPath = null)
-        {
-            // TODO: Implement with your SMTP/sendgrid/etc configuration
-            // Example:
-            // var message = new MimeMessage();
-            // message.To.Add(MailboxAddress.Parse(to));
-            // message.Subject = subject;
-            // ...
-            await Task.CompletedTask;
-        }
-    }
+ 
 }

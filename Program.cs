@@ -10,6 +10,10 @@ using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Initialize EmailSender with config
+
+EmailSender.Initialize(builder.Configuration);
+
 // Configure Kestrel port from appsettings.json
 var port = builder.Configuration.GetValue<int>("ServerSettings:Port");
 

@@ -3,23 +3,34 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
 namespace ARS.Classess.Utils
 {
     public static class EmailSender
     {
         private static readonly HttpClient _httpClient = new HttpClient();
-        private const string EmailEndpoint = "http://10.220.0.44:8096/api/Payarena/email";
+        private static string _emailEndpoint = string.Empty;
+
+        /// <summary>
+        /// Call this once in Program.cs / Startup.cs to wire up the endpoint from config.
+        /// </summary>
+        public static void Initialize(IConfiguration configuration)
+        {
+            _emailEndpoint = configuration["EmailSettings:Endpoint"]
+                ?? throw new InvalidOperationException(
+                    "EmailSettings:Endpoint is not configured in appsettings.json.");
+        }
 
         /// <summary>
         /// Sends an email via the Payarena email API.
         /// </summary>
-        /// <param name="address">Recipient email address.</param>
-        /// <param name="subject">Email subject.</param>
-        /// <param name="message">Email body/message.</param>
-        /// <returns>True if the request was successful; otherwise false.</returns>
         public static async Task<bool> SendEmail(string address, string subject, string message)
         {
+            if (string.IsNullOrWhiteSpace(_emailEndpoint))
+                throw new InvalidOperationException(
+                    "EmailSender has not been initialized. Call EmailSender.Initialize(configuration) at startup.");
+
             var payload = new
             {
                 Message = message,
@@ -27,21 +38,23 @@ namespace ARS.Classess.Utils
                 Subject = subject
             };
 
-            string json = JsonSerializer.Serialize(payload);
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            try
+            {
+                string json = JsonSerializer.Serialize(payload);
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            HttpResponseMessage response = await _httpClient.PostAsync(EmailEndpoint, content);
-
-            return response.IsSuccessStatusCode;
+                HttpResponseMessage response = await _httpClient.PostAsync(_emailEndpoint, content);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         /// <summary>
         /// Sends a user creation email with default password and mandatory change instructions.
         /// </summary>
-        /// <param name="address">Recipient email address.</param>
-        /// <param name="firstName">Recipient's first name.</param>
-        /// <param name="defaultPassword">The temporary default password assigned to the user.</param>
-        /// <returns>True if the request was successful; otherwise false.</returns>
         public static async Task<bool> SendUserCreationEmail(
             string address,
             string firstName,
@@ -54,11 +67,6 @@ namespace ARS.Classess.Utils
         /// <summary>
         /// Sends a password-updated notification email using the HTML template.
         /// </summary>
-        /// <param name="address">Recipient email address.</param>
-        /// <param name="firstName">Recipient's first name.</param>
-        /// <param name="updatedDate">Date/time the password was changed.</param>
-        /// <param name="role">User's role in the system.</param>
-        /// <returns>True if the request was successful; otherwise false.</returns>
         public static async Task<bool> SendPasswordUpdatedEmail(
             string address,
             string firstName,
