@@ -348,10 +348,10 @@ namespace ARS.Classess.Utils
                         .Replace("{{reportName}}", report.Name)
                         .Replace("{{date}}", DateTime.Now.ToString("yyyy-MM-dd"));
 
-                    string body = (report.EmailBodyTemplate ?? "Please find the attached report.")
-                        + $"\n\nDownload link: {linkOrFallback}";
+                    string body = (report.EmailBodyTemplate ?? "Please find the attached report.");
+                        //+ $"\n\nDownload link: {linkOrFallback}";
 
-                    bool sent = await EmailSender.SendEmail(email, subject, body);
+                    bool sent = await EmailSender.SendReportDistributionEmail(email, subject, body, linkOrFallback);
                     if (sent)
                     {
                         record.Status = "sent";
@@ -412,13 +412,15 @@ namespace ARS.Classess.Utils
 
                 try
                 {
-                    string body = (dest.EmailBody ?? "Please find the attached report.")
-                        + $"\n\nDownload link: {linkOrFallback}";
-
-                   bool sent =  await EmailSender.SendEmail(
+                    string body = (dest.EmailBody ?? "Please find the attached report.");
+                        //+ $"\n\nDownload link: {linkOrFallback}";
+                  
+                    bool sent =  await EmailSender.SendReportDistributionEmail(
                         email,
                         dest.EmailSubject ?? $"Report: {executionName}",
-                        body);
+                        body,
+                        linkOrFallback
+                        );
                     if (sent)
                     {
                         record.Status = "sent";

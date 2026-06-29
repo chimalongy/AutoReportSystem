@@ -78,6 +78,23 @@ namespace ARS.Classess.Utils
         }
 
         /// <summary>
+        /// Sends a report distribution email with an optional download link.
+        /// </summary>
+        public static async Task<bool> SendReportDistributionEmail(
+            string address,
+            string subject,
+            string body,
+            string? downloadLink = null)
+        {
+            string htmlBody = BuildReportDistributionTemplate(body, downloadLink);
+            return await SendEmail(address, subject, htmlBody);
+        }
+
+        // -------------------------------------------------------------------------
+        // Template builders
+        // -------------------------------------------------------------------------
+
+        /// <summary>
         /// Builds the HTML email template for user creation with default password.
         /// </summary>
         private static string BuildUserCreationTemplate(
@@ -314,6 +331,121 @@ namespace ARS.Classess.Utils
       <p>If you did not make this change, please contact your system administrator immediately as your account may be compromised.</p>
     </div>
     <p class=""closing"">Thank you for keeping your account secure.</p>
+  </div>
+  <div class=""footer"">
+    <p class=""footer-copy"">© {DateTime.Now.Year} Automated Reporting System. All rights reserved.<br/>This is an automated message — please do not reply to this email.</p>
+  </div>
+</div>
+</body>
+</html>";
+        }
+
+        /// <summary>
+        /// Builds the HTML email template for report distribution.
+        /// Renders the caller-supplied body as prose, then appends a
+        /// "Download Report" button when a download link is provided.
+        /// </summary>
+        private static string BuildReportDistributionTemplate(
+            string body,
+            string? downloadLink)
+        {
+            // Only render the download section when a link is actually supplied.
+            string downloadSection = string.IsNullOrWhiteSpace(downloadLink)
+                ? string.Empty
+                : $@"
+    <hr class=""divider""/>
+    <div class=""download-box"">
+      <div class=""download-label"">Report Attachment</div>
+      <p class=""download-hint"">Click the button below to download your report.</p>
+      <a href=""{EscapeHtml(downloadLink)}"" class=""download-btn"" target=""_blank"" rel=""noopener noreferrer"">
+        <svg viewBox=""0 0 24 24""><path d=""M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4""/><polyline points=""7 10 12 15 17 10""/><line x1=""12"" y1=""15"" x2=""12"" y2=""3""/></svg>
+        Download Report
+      </a>
+      <p class=""download-fallback"">If the button does not work, copy and paste this link into your browser:<br/>
+        <span class=""download-url"">{EscapeHtml(downloadLink)}</span>
+      </p>
+    </div>";
+
+            return $@"
+<!DOCTYPE html>
+<html lang=""en"">
+<head>
+  <meta charset=""UTF-8"" />
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0""/>
+  <title>Report – Automated Reporting System</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ background-color: #f0f4fa; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; padding: 24px 12px; }}
+    .wrapper {{ max-width: 540px; margin: 0 auto; }}
+
+    .header {{ background: #2563eb; border-radius: 12px 12px 0 0; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }}
+    .sys-name {{ font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: rgba(255,255,255,0.85); }}
+    .header-badge {{ background: rgba(255,255,255,0.2); color: #fff; font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }}
+
+    .hero {{ background: #3b82f6; padding: 32px 24px 28px; }}
+    .icon-wrap {{ width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }}
+    .icon-wrap svg {{ width: 20px; height: 20px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }}
+    .hero h1 {{ font-size: 22px; font-weight: 700; color: #fff; line-height: 1.3; margin-bottom: 6px; }}
+    .hero p {{ font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.6; }}
+
+    .body-card {{ background: #fff; padding: 28px 24px 24px; }}
+    .report-body {{ font-size: 14px; color: #374151; line-height: 1.75; margin-bottom: 22px; white-space: pre-wrap; word-break: break-word; }}
+
+    .divider {{ border: none; border-top: 1px solid #f3f4f6; margin: 18px 0; }}
+
+    /* Download section */
+    .download-box {{ background: #f8faff; border: 1px solid #dbeafe; border-radius: 10px; padding: 20px 18px; margin-bottom: 22px; text-align: center; }}
+    .download-label {{ font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: #60a5fa; margin-bottom: 6px; }}
+    .download-hint {{ font-size: 12px; color: #6b7280; margin-bottom: 16px; line-height: 1.5; }}
+    .download-btn {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 11px 22px;
+      border-radius: 8px;
+      letter-spacing: 0.2px;
+      margin-bottom: 14px;
+    }}
+    .download-btn svg {{ width: 15px; height: 15px; stroke: #fff; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }}
+    .download-fallback {{ font-size: 11px; color: #9ca3af; line-height: 1.6; margin-top: 10px; }}
+    .download-url {{ color: #2563eb; word-break: break-all; font-size: 11px; }}
+
+    .closing {{ font-size: 12px; color: #9ca3af; line-height: 1.65; text-align: center; }}
+
+    .footer {{ background: #f8faff; border: 1px solid #dbeafe; border-top: none; border-radius: 0 0 12px 12px; padding: 16px 24px; text-align: center; }}
+    .footer-copy {{ font-size: 11px; color: #9ca3af; line-height: 1.6; }}
+
+    @media (max-width: 420px) {{
+      body {{ padding: 12px 8px; }}
+      .header, .hero, .body-card, .footer {{ padding-left: 16px; padding-right: 16px; }}
+      .hero h1 {{ font-size: 20px; }}
+      .download-btn {{ width: 100%; justify-content: center; }}
+    }}
+  </style>
+</head>
+<body>
+<div class=""wrapper"">
+  <div class=""header"">
+    <span class=""sys-name"">Automated Reporting System</span>
+    <span class=""header-badge"">Report</span>
+  </div>
+  <div class=""hero"">
+    <div class=""icon-wrap"">
+      <svg viewBox=""0 0 24 24""><path d=""M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z""/><polyline points=""14 2 14 8 20 8""/><line x1=""16"" y1=""13"" x2=""8"" y2=""13""/><line x1=""16"" y1=""17"" x2=""8"" y2=""17""/><polyline points=""10 9 9 9 8 9""/></svg>
+    </div>
+    <h1>Report Distribution</h1>
+    <p>A report has been shared with you from the Automated Reporting System.</p>
+  </div>
+  <div class=""body-card"">
+    <div class=""report-body"">{EscapeHtml(body)}</div>
+    {downloadSection}
+    <p class=""closing"">This report was generated and distributed by the Automated Reporting System.</p>
   </div>
   <div class=""footer"">
     <p class=""footer-copy"">© {DateTime.Now.Year} Automated Reporting System. All rights reserved.<br/>This is an automated message — please do not reply to this email.</p>
