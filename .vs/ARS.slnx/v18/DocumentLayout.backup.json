@@ -1,18 +1,14 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\",
+  "WorkspaceRootPath": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\autoreportsystem\\classess\\utils\\reportfetcher.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\colegeme\\source\\repos\\autoreportsystem\\classess\\utils\\reportfetcher.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:classess\\utils\\reportfetcher.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\autoreportsystem\\classess\\utils\\globalvariables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:classess\\utils\\globalvariables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\autoreportsystem\\controllers\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:controllers\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\colegeme\\source\\repos\\autoreportsystem\\jobs\\reportexecutionjob.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:jobs\\reportexecutionjob.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -22,7 +18,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Bookmark",
@@ -30,41 +26,28 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "GlobalVariables.cs",
-              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\GlobalVariables.cs",
-              "RelativeDocumentMoniker": "Classess\\Utils\\GlobalVariables.cs",
-              "ToolTip": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\GlobalVariables.cs",
-              "RelativeToolTip": "Classess\\Utils\\GlobalVariables.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAqwBAAAAAtAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-27T08:55:30.994Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 0,
               "Title": "ReportFetcher.cs",
-              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\ReportFetcher.cs",
+              "DocumentMoniker": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Classess\\Utils\\ReportFetcher.cs",
               "RelativeDocumentMoniker": "Classess\\Utils\\ReportFetcher.cs",
-              "ToolTip": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\ReportFetcher.cs",
+              "ToolTip": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Classess\\Utils\\ReportFetcher.cs",
               "RelativeToolTip": "Classess\\Utils\\ReportFetcher.cs",
-              "ViewState": "AgIAAE8AAAAAAAAAAAASwFsAAAAMAAAAAAAAAA==",
+              "ViewState": "AgIAAO8AAAAAAAAAAAAnwAwBAAAsAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-27T08:50:52.559Z",
+              "WhenOpened": "2026-08-27T10:17:46.32Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "DashboardController.cs",
-              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Controllers\\DashboardController.cs",
-              "RelativeDocumentMoniker": "Controllers\\DashboardController.cs",
-              "ToolTip": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Controllers\\DashboardController.cs",
-              "RelativeToolTip": "Controllers\\DashboardController.cs",
-              "ViewState": "AgIAAHAEAAAAAAAAAAAhwC4EAAAoAAAAAAAAAA==",
+              "DocumentIndex": 1,
+              "Title": "ReportExecutionJob.cs",
+              "DocumentMoniker": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Jobs\\ReportExecutionJob.cs",
+              "RelativeDocumentMoniker": "Jobs\\ReportExecutionJob.cs",
+              "ToolTip": "C:\\Users\\colegeme\\source\\repos\\AutoReportSystem\\Jobs\\ReportExecutionJob.cs",
+              "RelativeToolTip": "Jobs\\ReportExecutionJob.cs",
+              "ViewState": "AgIAAC0AAAAAAAAAAAAowDMAAAArAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-27T08:49:06.715Z",
+              "WhenOpened": "2026-08-27T11:10:52.907Z",
               "EditorCaption": ""
             }
           ]

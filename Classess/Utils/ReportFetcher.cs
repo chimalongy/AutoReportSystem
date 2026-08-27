@@ -190,12 +190,12 @@ namespace ARS.Classess.Utils
                         if (dest.DestinationType == "email")
                         {
                             var emailRecs = await SendToDestinationEmailAsync(
-                              execution.Id,  dest, result.FilePath, report.OutputFileName, logPath, logFileName);
+                              execution.Id,  dest, result.FilePath, executionName, logPath, logFileName);
                             emailsSent.AddRange(emailRecs);
                         }
                         else if (dest.DestinationType == "file")
                         {
-                            var fileRec = await SaveToDestinationFileAsync(report, dest, result.FilePath, logPath, logFileName);
+                            var fileRec = await SaveToDestinationFileAsync(report,executionName, dest, result.FilePath, logPath, logFileName);
                             filesSent.Add(fileRec);
                         }
                     }
@@ -265,8 +265,8 @@ namespace ARS.Classess.Utils
 
             string sourceExt = Path.GetExtension(sourceFilePath); // e.g. ".csv" or ".xlsx"
             string dest_filename = Path.HasExtension(report.OutputFileName)
-                ? report.OutputFileName
-                : report.OutputFileName + sourceExt;
+                ? executionName
+                : executionName + sourceExt;
 
             try
             {
@@ -483,7 +483,7 @@ namespace ARS.Classess.Utils
 
 
 
-        private async Task<FileSentRecord> SaveToDestinationFileAsync( Report report,
+        private async Task<FileSentRecord> SaveToDestinationFileAsync( Report report,string executionName,
       ReportDistributionDestination dest, string sourceFilePath, string logpath, string logFileName)
         {
             var record = new FileSentRecord
@@ -495,8 +495,8 @@ namespace ARS.Classess.Utils
 
             string sourceExt = Path.GetExtension(sourceFilePath); // e.g. ".csv" or ".xlsx"
             string dest_filename = Path.HasExtension(report.OutputFileName)
-                ? report.OutputFileName
-                : report.OutputFileName + sourceExt;
+                ? executionName
+                : executionName + sourceExt;
 
             try
             {
