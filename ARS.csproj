@@ -26,7 +26,6 @@
 
   <ItemGroup>
     <Folder Include="Views\Dashboard\NewFolder\" />
-    <Folder Include="wwwroot\images\" />
   </ItemGroup>
 
 <Target Name="BuildTailwind" BeforeTargets="Build">

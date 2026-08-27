@@ -1027,6 +1027,7 @@ namespace ARS.Controllers
                         r.CreatedAt,
                         r.UpdatedAt,
                         r.LastErrorMessage,
+                        r.ReportRecordDateOffsetDays,   // ← ADD THIS LINE
                         // Distribution
                         r.EnableEmailDistribution,
                         r.EmailToRecipients,

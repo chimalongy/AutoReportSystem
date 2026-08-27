@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] — Auto Report Generator</title>
+    <title>@ViewData["Title"] — Auto Reporting System</title>
     <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
     <style>
         /* ── Sidebar shell ── */
@@ -62,12 +62,10 @@
 
     @* ── Mobile top bar ── *@
     <header class="md:hidden bg-surface-card border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-        <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center">
-                <span class="text-white text-xs font-bold">A</span>
-            </div>
-            <span class="text-text-primary text-sm font-semibold tracking-wide">Auto Report Generator</span>
-        </div>
+       <div class="flex items-center gap-2">
+    <img src="~/images/uplogo.png" alt="Auto Reporting System" class="h-7 w-auto" asp-append-version="true" />
+    <span class="text-text-primary text-sm font-semibold tracking-wide">Auto Reporting System</span>
+</div>
         <button id="mob-menu-btn"
                 aria-label="Open navigation menu"
                 class="w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:bg-surface hover:text-text-primary transition-colors">
@@ -96,12 +94,10 @@
         <aside id="sidebar" class="bg-surface-card border-r border-border flex flex-col">
 
             @* Logo (desktop only — hidden on mobile since top bar shows it) *@
-            <div class="hidden md:flex items-center gap-2.5 px-5 py-4 border-b border-border">
-                <div class="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center flex-shrink-0">
-                    <span class="text-white text-xs font-bold">A</span>
-                </div>
-                <span class="text-text-primary text-sm font-semibold tracking-wide">Auto Report Generator</span>
-            </div>
+<div class="hidden md:flex items-center gap-2.5 px-5 py-4 border-b border-border">
+    <img src="~/images/uplogo.png" alt="Auto Reporting System" class="h-7 w-auto flex-shrink-0" asp-append-version="true" />
+    <span class="text-text-primary text-sm font-semibold tracking-wide">Auto Reporting System</span>
+</div>
 
             @* ── Nav links ── *@
             <nav class="flex-1 px-3 py-4 flex flex-col gap-0.5">
