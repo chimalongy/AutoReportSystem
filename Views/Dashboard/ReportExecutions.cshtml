@@ -1,0 +1,626 @@
+@model ARS.Models.Report
+@{
+    ViewData["Title"] = Model.Name + " — Executions";
+    ViewData["ActivePage"] = "Reports";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<style>
+    @@keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @@keyframes slideUp {
+        from { opacity: 0; transform: translateY(32px) scale(0.98); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .fade-up { opacity: 0; animation: fadeUp 0.45s ease forwards; }
+    .fade-up-1 { animation-delay: 0.05s; }
+    .fade-up-2 { animation-delay: 0.15s; }
+    .fade-up-3 { animation-delay: 0.25s; }
+
+    .exec-row { transition: background 0.15s ease; }
+    .exec-row:hover { background: var(--color-surface, #f8fafc); }
+
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.7s linear infinite; }
+
+    .page-btn {
+        min-width: 32px; height: 32px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 8px; font-size: 0.75rem; font-weight: 500;
+        border: 1px solid var(--color-border);
+        color: var(--color-text-secondary);
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .page-btn:hover:not(:disabled) { background: var(--color-surface); color: var(--color-text-primary); }
+    .page-btn.active { background: var(--color-brand-500, #3b82f6); color: #fff; border-color: var(--color-brand-500, #3b82f6); }
+    .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .exec-badge-running   { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
+    .exec-badge-completed { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+    .exec-badge-failed    { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+
+    .delivery-item {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background: var(--color-surface, #f8fafc);
+        border-radius: 0.5rem;
+        border: 1px solid var(--color-border, #e2e8f0);
+        font-size: 0.75rem;
+    }
+    .delivery-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .delivery-status-sent    { background: #22c55e; }
+    .delivery-status-failed  { background: #ef4444; }
+    .delivery-status-pending { background: #f59e0b; }
+
+    .info-item {
+        padding: 0.625rem 0.875rem;
+        background: var(--color-surface, #f8fafc);
+        border-radius: 0.625rem;
+        border: 1px solid var(--color-border, #f1f5f9);
+    }
+    .info-label {
+        font-size: 0.6875rem; font-weight: 600; color: var(--color-text-muted);
+        text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.25rem;
+    }
+    .info-value { font-size: 0.8125rem; color: var(--color-text-primary); font-weight: 500; word-break: break-word; }
+
+    /* ── Detail / Log modals ── */
+    #detailModal, #logModal { display: none; animation: fadeIn 0.15s ease forwards; }
+    #detailModal.open, #logModal.open { display: flex; }
+    #detailBox, #logModalPanel { animation: slideUp 0.22s cubic-bezier(0.34, 1.4, 0.64, 1) forwards; }
+
+    .copy-toast {
+        position: fixed; bottom: 1.5rem; right: 1.5rem;
+        background: #1e293b; color: #fff;
+        padding: 0.625rem 1rem; border-radius: 0.625rem;
+        font-size: 0.8125rem; font-weight: 500;
+        opacity: 0; transform: translateY(8px);
+        transition: all 0.25s ease;
+        pointer-events: none; z-index: 100;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .copy-toast.show { opacity: 1; transform: translateY(0); }
+</style>
+
+@* ── Breadcrumb ── *@
+<div class="flex items-center gap-2 mb-5 fade-up fade-up-1">
+    <a href="/Dashboard/Reports"
+       class="text-text-muted hover:text-text-primary text-sm flex items-center gap-1 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Reports
+    </a>
+    <span class="text-text-muted text-sm">/</span>
+    <a href="/Dashboard/Reports/@Uri.EscapeDataString(Model.Name)"
+       class="text-text-muted hover:text-text-primary text-sm truncate max-w-[200px]">@Model.Name</a>
+    <span class="text-text-muted text-sm">/</span>
+    <span class="text-text-primary text-sm font-medium">Executions</span>
+</div>
+
+@* ── Page header ── *@
+<div class="flex items-center justify-between mb-6 fade-up fade-up-1">
+    <div>
+        <h1 class="text-text-primary text-2xl font-semibold">Executions</h1>
+        <p class="text-text-muted text-sm mt-0.5">Run history for <span class="font-medium">@Model.Name</span>.</p>
+    </div>
+    <a href="/Dashboard/Reports/@Uri.EscapeDataString(Model.Name)"
+       class="px-4 py-2.5 text-sm text-text-secondary border border-border rounded-xl hover:bg-surface transition-colors">
+        Back to Report
+    </a>
+</div>
+
+@* ── Filters row ── *@
+<div class="bg-surface-card border border-border rounded-2xl px-5 py-4 mb-4 fade-up fade-up-2">
+    <div class="flex flex-wrap gap-3 items-end">
+
+        <div class="min-w-[160px]">
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Status</label>
+            <select id="statusFilter" onchange="applyFilters()"
+                    class="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm
+                           text-text-primary focus:outline-none focus:border-blue-400
+                           focus:ring-2 focus:ring-blue-100 transition-colors">
+                <option value="">All Statuses</option>
+                <option value="running">Running</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+            </select>
+        </div>
+
+        <div class="min-w-[150px]">
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Date From</label>
+            <input id="dateFrom" type="date" onchange="applyFilters()"
+                   class="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm
+                          text-text-primary focus:outline-none focus:border-blue-400
+                          focus:ring-2 focus:ring-blue-100 transition-colors" />
+        </div>
+
+        <div class="min-w-[150px]">
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Date To</label>
+            <input id="dateTo" type="date" onchange="applyFilters()"
+                   class="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm
+                          text-text-primary focus:outline-none focus:border-blue-400
+                          focus:ring-2 focus:ring-blue-100 transition-colors" />
+        </div>
+
+        <div>
+            <button onclick="clearFilters()"
+                    class="px-4 py-2 text-sm text-text-secondary border border-border rounded-xl
+                           hover:bg-surface hover:text-text-primary transition-colors">
+                Clear
+            </button>
+        </div>
+
+    </div>
+</div>
+
+@* ── Table card ── *@
+<div class="bg-surface-card border border-border rounded-2xl shadow-sm overflow-hidden fade-up fade-up-3">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-border bg-surface">
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">ID</th>
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Status</th>
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Started</th>
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Ended</th>
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Rows</th>
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Details</th>
+                </tr>
+            </thead>
+            <tbody id="execTableBody">
+                <tr>
+                    <td colspan="6" class="text-center py-12 text-text-muted">
+                        <svg class="w-5 h-5 mx-auto mb-2 spinner text-blue-400"
+                             fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                        </svg>
+                        <span class="text-xs">Loading executions...</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="px-5 py-3 border-t border-border bg-surface flex flex-wrap items-center justify-between gap-3">
+        <span id="execCount" class="text-xs text-text-muted">--</span>
+        <div id="pagination" class="flex items-center gap-1"></div>
+    </div>
+</div>
+
+@* ============== DETAIL MODAL ============== *@
+<div id="detailModal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm items-center justify-center px-4">
+    <div id="detailBox" class="bg-surface-card border border-border rounded-2xl shadow-xl w-full max-w-lg px-6 py-6 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-text-primary font-semibold text-base" id="detailTitle">Execution Details</h3>
+            <button onclick="closeDetail()" class="text-text-muted hover:text-text-primary transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div id="detailBody"></div>
+    </div>
+</div>
+
+@* ============== LOG MODAL ============== *@
+<div id="logModal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm items-center justify-center px-4">
+    <div id="logModalPanel" class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+            <div>
+                <h3 class="text-text-primary text-sm font-semibold" id="logModalTitle">Execution Logs</h3>
+                <p class="text-text-muted text-xs" id="logModalSubtitle">Loading…</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="downloadCurrentLog()" id="logDownloadBtn"
+                        class="hidden px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-surface transition-colors text-text-secondary flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                    Download Log
+                </button>
+                <button onclick="closeLogModal()"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface transition-colors text-text-muted hover:text-text-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="overflow-auto flex-1 p-4" id="logModalScroll">
+            <div id="logModalContent" class="text-center py-8 text-text-muted text-sm">Loading logs…</div>
+        </div>
+        <div class="px-5 py-3 border-t border-border flex items-center justify-between flex-shrink-0">
+            <span class="text-xs text-text-muted" id="logModalFooter"></span>
+            <button onclick="scrollLogsToBottom()"
+                    class="text-xs text-text-muted hover:text-text-primary flex items-center gap-1.5 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+                Scroll to bottom
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="downloadToast" class="copy-toast">
+    <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        <span id="downloadToastMsg">Downloading…</span>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    var reportId = @Model.Id;
+
+    // ── State ────────────────────────────────────────────────────────────────
+    // Server-side pagination, same pattern as the audit log page: only the
+    // current page's rows and a total count ever cross the wire.
+    const PAGE_SIZE  = 25;
+    let currentPage  = 1;
+    let totalRecords = 0;
+    let totalPages   = 1;
+    let currentRows  = [];
+    let _currentLogPath = null;
+
+    function buildQuery() {
+        const status   = document.getElementById('statusFilter').value;
+        const dateFrom = document.getElementById('dateFrom').value;
+        const dateTo   = document.getElementById('dateTo').value;
+
+        const params = new URLSearchParams();
+        params.set('page', currentPage);
+        params.set('pageSize', PAGE_SIZE);
+        if (status)   params.set('status', status);
+        if (dateFrom) params.set('dateFrom', dateFrom);
+        if (dateTo)   params.set('dateTo', dateTo);
+        return params.toString();
+    }
+
+    async function loadExecutions() {
+        const tbody = document.getElementById('execTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-12 text-text-muted">
+                    <svg class="w-5 h-5 mx-auto mb-2 spinner text-blue-400"
+                         fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    <span class="text-xs">Loading executions...</span>
+                </td>
+            </tr>`;
+
+        try {
+            const res = await fetch(`/Dashboard/Reports/Executions/${reportId}?${buildQuery()}`);
+            if (!res.ok) throw new Error();
+            const payload = await res.json();
+
+            currentRows  = payload.data ?? [];
+            totalRecords = payload.total ?? currentRows.length;
+            totalPages   = payload.totalPages ?? 1;
+            currentPage  = payload.page ?? currentPage;
+
+            renderTable();
+        } catch {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-12 text-text-muted text-xs">
+                        Failed to load executions. Please refresh the page.
+                    </td>
+                </tr>`;
+            document.getElementById('execCount').textContent = '--';
+            document.getElementById('pagination').innerHTML = '';
+        }
+    }
+
+    function applyFilters() {
+        currentPage = 1;
+        loadExecutions();
+    }
+
+    function clearFilters() {
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
+        applyFilters();
+    }
+
+    function getExecStatusClass(status) {
+        if (status === 'completed') return 'exec-badge-completed';
+        if (status === 'failed')    return 'exec-badge-failed';
+        return 'exec-badge-running';
+    }
+
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    function formatDuration(start, end) {
+        if (!end) return '—';
+        var diff = new Date(end) - new Date(start);
+        var mins = Math.floor(diff / 60000);
+        var secs = Math.floor((diff % 60000) / 1000);
+        return mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+    }
+
+    function escHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function renderTable() {
+        const tbody   = document.getElementById('execTableBody');
+        const countEl = document.getElementById('execCount');
+
+        countEl.textContent = totalRecords === 0
+            ? 'No executions'
+            : `${totalRecords} execution${totalRecords !== 1 ? 's' : ''} total`;
+
+        if (currentRows.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-12 text-text-muted text-xs">
+                        No executions match your filters.
+                    </td>
+                </tr>`;
+            renderPagination();
+            return;
+        }
+
+        tbody.innerHTML = currentRows.map(e => `
+            <tr class="exec-row border-b border-border last:border-0">
+                <td class="px-5 py-3 text-text-secondary text-xs font-mono">#${e.id}</td>
+                <td class="px-5 py-3">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getExecStatusClass(e.executionStatus)}">
+                        ${escHtml(e.executionStatus)}
+                    </span>
+                </td>
+                <td class="px-5 py-3 text-text-secondary text-xs whitespace-nowrap">${fmtDate(e.startTime)}</td>
+                <td class="px-5 py-3 text-text-secondary text-xs whitespace-nowrap">${fmtDate(e.endTime)}</td>
+                <td class="px-5 py-3 text-text-secondary text-xs">${e.rowCount != null ? e.rowCount.toLocaleString() : '—'}</td>
+                <td class="px-5 py-3">
+                    <button onclick='viewDetail(${e.id})'
+                            class="text-xs px-2.5 py-1.5 rounded-lg border border-border
+                                   text-text-secondary hover:border-blue-300 hover:text-blue-600
+                                   hover:bg-blue-50 transition-colors">
+                        View
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        renderPagination();
+    }
+
+    function renderPagination() {
+        const el = document.getElementById('pagination');
+        if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+        const MAX_VISIBLE = 5;
+        let pages = [];
+
+        if (totalPages <= MAX_VISIBLE + 2) {
+            pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+        } else {
+            pages = [1];
+            let start = Math.max(2, currentPage - 1);
+            let end   = Math.min(totalPages - 1, currentPage + 1);
+
+            if (currentPage <= 3)               end   = Math.min(totalPages - 1, 4);
+            if (currentPage >= totalPages - 2)  start = Math.max(2, totalPages - 3);
+
+            if (start > 2)             pages.push('...');
+            for (let i = start; i <= end; i++) pages.push(i);
+            if (end < totalPages - 1)  pages.push('...');
+            pages.push(totalPages);
+        }
+
+        el.innerHTML = `
+            <button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            ${pages.map(p => p === '...'
+                ? `<span class="page-btn cursor-default border-0 text-text-muted">...</span>`
+                : `<button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`
+            ).join('')}
+            <button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </button>`;
+    }
+
+    function goPage(p) {
+        if (p < 1 || p > totalPages || p === currentPage) return;
+        currentPage = p;
+        loadExecutions();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ── Detail modal (uses the row already loaded — no extra fetch needed) ──
+    function viewDetail(id) {
+        const exec = currentRows.find(e => e.id === id);
+        if (!exec) return;
+
+        document.getElementById('detailTitle').textContent = 'Execution #' + exec.id;
+
+        let body = '';
+        body += `<div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="info-item"><div class="info-label">Status</div>
+                <div class="info-value"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getExecStatusClass(exec.executionStatus)}">${escHtml(exec.executionStatus)}</span></div>
+            </div>
+            <div class="info-item"><div class="info-label">Row Count</div><div class="info-value">${exec.rowCount != null ? exec.rowCount.toLocaleString() : '—'}</div></div>
+            <div class="info-item"><div class="info-label">Started</div><div class="info-value">${fmtDate(exec.startTime)}</div></div>
+            <div class="info-item"><div class="info-label">Ended</div><div class="info-value">${fmtDate(exec.endTime)}</div></div>
+            <div class="info-item"><div class="info-label">Duration</div><div class="info-value">${formatDuration(exec.startTime, exec.endTime)}</div></div>
+        </div>`;
+
+        if (exec.errorMessage) {
+            body += `<div class="mb-4 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                <span class="font-semibold">Error:</span> ${escHtml(exec.errorMessage)}
+            </div>`;
+        }
+
+        body += buildDeliveryRows(exec.emailsSent, false);
+        body += buildDeliveryRows(exec.filesSent, true);
+
+        body += `<div class="flex gap-2 mt-4">`;
+        if (exec.executionLogsPath) {
+            body += `<button onclick='showLogs(${JSON.stringify(exec.executionLogsPath)}, ${exec.id})'
+                class="flex-1 px-3 py-2 text-xs font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
+                View Logs
+            </button>`;
+        }
+        if (exec.executionResultPath) {
+            body += `<button onclick="downloadResultFile(${exec.id})"
+                class="flex-1 px-3 py-2 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+                Download Result
+            </button>`;
+        }
+        body += `</div>`;
+
+        document.getElementById('detailBody').innerHTML = body;
+        document.getElementById('detailModal').classList.add('open');
+    }
+
+    function dotClass(status) {
+        if (status === 'sent' || status === 'saved') return 'delivery-status-sent';
+        if (status === 'failed')                     return 'delivery-status-failed';
+        return 'delivery-status-pending';
+    }
+
+    function buildDeliveryRows(items, isFile) {
+        if (!items || !items.length) return '';
+        var label = isFile ? 'Files' : 'Emails';
+        var rows = items.map(function (item) {
+            var target    = isFile ? escHtml(item.path) : escHtml(item.email);
+            var monoClass = isFile ? ' font-mono' : '';
+            var errHtml   = item.errorMessage
+                ? '<span class="text-red-500 text-[10px] ml-1 cursor-help" title="' + escHtml(item.errorMessage) + '">⚠</span>'
+                : '';
+            return '<div class="delivery-item">'
+                + '<span class="delivery-status-dot ' + dotClass(item.status) + '"></span>'
+                + '<span class="text-text-secondary truncate flex-1' + monoClass + '">' + target + '</span>'
+                + '<span class="text-text-muted text-[10px] uppercase ml-2">' + escHtml(item.status) + '</span>'
+                + errHtml
+                + '</div>';
+        }).join('');
+
+        return '<div class="mb-3"><div class="text-[10px] font-semibold text-text-muted uppercase tracking-wide mb-1.5">' + label + '</div>'
+            + '<div class="space-y-1">' + rows + '</div></div>';
+    }
+
+    function closeDetail() {
+        document.getElementById('detailModal').classList.remove('open');
+    }
+
+    document.getElementById('detailModal').addEventListener('click', function (e) {
+        if (e.target === this) closeDetail();
+    });
+
+    // ── Log viewer ──
+    function showLogs(logPath, execId) {
+        if (!logPath) return;
+        _currentLogPath = logPath;
+
+        document.getElementById('logModalTitle').textContent    = 'Execution Logs — #' + execId;
+        document.getElementById('logModalSubtitle').textContent = 'Loading…';
+        document.getElementById('logModalFooter').textContent   = '';
+        document.getElementById('logDownloadBtn').classList.add('hidden');
+        document.getElementById('logModalContent').innerHTML    = 'Loading logs…';
+        document.getElementById('logModal').classList.add('open');
+
+        fetch('/Dashboard/Reports/ExecutionLogs?path=' + encodeURIComponent(logPath))
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status + ' — log file may have been removed.');
+                return r.text();
+            })
+            .then(function (text) {
+                var lines = text.split('\n');
+                var lineCount = lines.filter(function (l) { return l.trim() !== ''; }).length;
+
+                document.getElementById('logModalSubtitle').textContent = lineCount + ' line' + (lineCount !== 1 ? 's' : '');
+                document.getElementById('logModalFooter').textContent   = logPath;
+                document.getElementById('logDownloadBtn').classList.remove('hidden');
+
+                var colored = lines.map(function (line) {
+                    var safe = escHtml(line);
+                    if (!safe.trim()) return '<span> </span>';
+                    if (/\b(ERROR|FAIL|FAILED|EXCEPTION|CRITICAL)\b/i.test(line)) return '<span class="text-red-400">' + safe + '</span>';
+                    if (/\b(WARN|WARNING)\b/i.test(line)) return '<span class="text-amber-400">' + safe + '</span>';
+                    if (/\b(SUCCESS|COMPLETED|DONE|FINISH|OK)\b/i.test(line)) return '<span class="text-emerald-400">' + safe + '</span>';
+                    if (/\b(INFO|START|STARTING|RUNNING|BEGIN|INIT)\b/i.test(line)) return '<span class="text-sky-400">' + safe + '</span>';
+                    if (/\b(DEBUG|TRACE|VERBOSE)\b/i.test(line)) return '<span class="text-slate-500">' + safe + '</span>';
+                    return '<span class="text-slate-300">' + safe + '</span>';
+                }).join('\n');
+
+                document.getElementById('logModalContent').innerHTML =
+                    '<pre style="background:#0f172a;color:#e2e8f0;font-family:\'SF Mono\',Monaco,\'Cascadia Code\',monospace;'
+                    + 'font-size:0.73rem;line-height:1.75;padding:1rem;border-radius:0.625rem;overflow-x:auto;'
+                    + 'white-space:pre-wrap;word-break:break-all;">' + colored + '</pre>';
+            })
+            .catch(function (err) {
+                document.getElementById('logModalSubtitle').textContent = 'Error';
+                document.getElementById('logModalContent').innerHTML =
+                    '<div class="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">' + escHtml(err.message) + '</div>';
+            });
+    }
+
+    function closeLogModal() {
+        document.getElementById('logModal').classList.remove('open');
+        _currentLogPath = null;
+    }
+
+    document.getElementById('logModal').addEventListener('click', function (e) {
+        if (e.target === this) closeLogModal();
+    });
+
+    function downloadCurrentLog() {
+        if (_currentLogPath) {
+            window.location.href = '/Dashboard/Reports/ExecutionLogs?path=' + encodeURIComponent(_currentLogPath) + '&download=true';
+        }
+    }
+
+    function scrollLogsToBottom() {
+        var scroll = document.getElementById('logModalScroll');
+        if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    }
+
+    function downloadResultFile(execId) {
+        var toast = document.getElementById('downloadToast');
+        var msg   = document.getElementById('downloadToastMsg');
+        msg.textContent = 'Starting download…';
+        toast.classList.add('show');
+
+        var url = '/Dashboard/Reports/Executions/Download/' + execId;
+        var iframe = document.getElementById('downloadIframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'downloadIframe';
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
+        iframe.src = url;
+
+        msg.textContent = 'Download started!';
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { closeLogModal(); closeDetail(); }
+    });
+
+    loadExecutions();
+</script>
+}

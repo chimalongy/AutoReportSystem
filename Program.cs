@@ -51,10 +51,44 @@ builder.Services.AddHostedService<ReportSchedulerStartup>();
 
 
 // ── Database ──────────────────────────────────────────────────────────────
+//builder.Services.AddDbContext<AppDbContext>(options =>
+//    options.UseNpgsql(
+//        builder.Configuration.GetConnectionString("DefaultConnection")
+//    ));
+
+//builder.Services.AddDbContext<AppDbContext>(options =>
+//{
+//    options.UseNpgsql(
+//        builder.Configuration.GetConnectionString("DefaultConnection"),
+//        npgsqlOptions =>
+//        {
+//            npgsqlOptions.CommandTimeout(300);
+//        });
+
+//    options.EnableDetailedErrors();
+
+
+//    options.EnableSensitiveDataLogging();
+
+//});
+
 builder.Services.AddDbContext<AppDbContext>(options =>
+{
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")
-    ));
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsqlOptions =>
+        {
+            npgsqlOptions.CommandTimeout(300);
+            // Add automatic retries for transient connection drops
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorCodesToAdd: null);
+        });
+
+    options.EnableDetailedErrors();
+    options.EnableSensitiveDataLogging();
+});
 
 // ── Cookie Authentication ─────────────────────────────────────────────────
 builder.Services.AddAuthentication(options =>

@@ -1,6 +1,9 @@
-using Microsoft.EntityFrameworkCore;
 using ARS.Data;
 using ARS.Models;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using System.Data;
+using System.Diagnostics;
 
 namespace ARS.Classess.Utils
 {
@@ -163,8 +166,7 @@ namespace ARS.Classess.Utils
             return (new { user.Id, user.ProfileStatus }, null);
         }
 
-        // ── GET all audit logs ────────────────────────────────────────────────
-        public static async Task<IEnumerable<object>> GetAllAuditLogsAsync(AppDbContext db)
+        public static async Task<IEnumerable<object>> GetAllAuditLogsAsyncOLD(AppDbContext db)
         {
             return await db.AuditLogs
                 .OrderByDescending(l => l.EventDate)
@@ -175,7 +177,10 @@ namespace ARS.Classess.Utils
                     l.IpAddress,
                     l.Event,
                     l.EventDate,
-                    l.PageUrl
+                    l.PageUrl,
+                    l.UserEmail,
+                    l.Action,
+                    l.ResourceName
                 })
                 .ToListAsync();
         }
@@ -211,5 +216,83 @@ namespace ARS.Classess.Utils
                 Console.WriteLine($"[Seed] Super Admin created: {superAdminEmail}");
             }
         }
+
+
+
+        public static NpgsqlDataReader GetDataReader(string qry, NpgsqlParameter[] parameters, string oradb)
+        {
+            NpgsqlDataReader dr = null;
+
+            Stopwatch se = new Stopwatch();
+            se.Start();
+
+            ErrorLogger.LogError(DateTime.Now.ToString() + "INFO INITIALIZING PULLING FROM DB");
+
+            NpgsqlConnection Standby_connection = new NpgsqlConnection(oradb);
+            NpgsqlCommand cmd = new NpgsqlCommand();
+            int retrycount = 0;
+            const int maxRetries = 3;
+
+        retry:
+            try
+            {
+                cmd.Connection = Standby_connection;
+                cmd.CommandText = qry;
+                cmd.CommandType = CommandType.Text;
+
+                if (parameters != null && parameters.Length > 0)
+                {
+                    cmd.Parameters.Clear();
+                    cmd.Parameters.AddRange(parameters);
+                }
+
+                if (Standby_connection.State != System.Data.ConnectionState.Open)
+                    Standby_connection.Open();
+
+                dr = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(DateTime.Now.ToString() + " ERROR OCCURRED PULLING FROM DB: " + ex.Message);
+
+                try { Standby_connection.Close(); } catch { }
+
+                retrycount++;
+                if (retrycount < maxRetries)
+                {
+                    goto retry;
+                }
+
+                dr = null;
+            }
+            finally
+            {
+                se.Stop();
+                TimeSpan ts = se.Elapsed;
+                string eT = string.Format("{0:00}:{1:00}:{2:00}:{3:00}", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds);
+
+                ErrorLogger.LogError(DateTime.Now.ToString() + "  INFO COMPLETE PULLING FROM DB");
+
+                cmd.Dispose();
+            }
+
+            return dr;
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
 }

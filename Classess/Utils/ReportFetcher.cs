@@ -28,30 +28,51 @@ namespace ARS.Classess.Utils
 
         public static string BuildExecutionFileName(Report report)
         {
-            string safeName = string.Concat(report.Name.Split(System.IO.Path.GetInvalidFileNameChars()))
-                                    .Trim()
-                                    .ToLowerInvariant()
-                                    .Replace(' ', '_');
+            DateTime current_date = DateTime.Now;
+            string report_execution_name = string.Empty;
+            string rawName = string.IsNullOrWhiteSpace(report.OutputFileName)
+                ? report.Name
+                : report.OutputFileName;
+
+        string safeName = string.Concat(rawName.Split(Path.GetInvalidFileNameChars()))
+                        .Trim()
+                        .ToLowerInvariant()
+                        .Replace(' ', '_');
 
             DateTime now = DateTime.Now;
 
             if (report.ExecutionType == "single")
-                return safeName;
+            {
+                if (report.ReportRecordDateOffsetDays!=0)
+                {
+                    DateTime record_date = current_date.AddDays(report.ReportRecordDateOffsetDays);
+                  report_execution_name    = safeName + "_"+ record_date.ToString("yyyy-MM-dd");
+                    return report_execution_name;
+                }
+
+                report_execution_name = safeName+"_"+ current_date.ToString("yyyy-MM-dd");
+                return report_execution_name;
+            }
+
 
             if (report.ExecutionType == "scheduled")
             {
+                DateTime record_date = report.ReportRecordDateOffsetDays != 0
+                    ? now.AddDays(report.ReportRecordDateOffsetDays)
+                    : now;
+
                 return report.ScheduleFrequency?.ToLowerInvariant() switch
                 {
-                    "daily" => $"{safeName}_{now:yyyy-MM-dd}",
-                    "weekly" => $"{safeName}_{now:yyyy}_W{System.Globalization.ISOWeek.GetWeekOfYear(now):D2}",
-                    "monthly" => $"{safeName}_{now:yyyy-MM}",
-                    "custom_dates" => $"{safeName}_{now:yyyy-MM-dd}",
-                    "custom_recurring" => $"{safeName}_{now:yyyy-MM-dd_HH-mm}",
-                    _ => $"{safeName}_{now:yyyy-MM-dd_HH-mm-ss}"
+                    "daily" => $"{safeName}_{record_date:yyyy-MM-dd}",
+                    "weekly" => $"{safeName}_{record_date:yyyy}_W{System.Globalization.ISOWeek.GetWeekOfYear(record_date):D2}",
+                    "monthly" => $"{safeName}_{record_date:yyyy-MM}",
+                    "custom_dates" => $"{safeName}_{record_date:yyyy-MM-dd}",
+                    "custom_recurring" => $"{safeName}_{record_date:yyyy-MM-dd_HH-mm}",
+                    _ => $"{safeName}_{record_date:yyyy-MM-dd_HH-mm-ss}"
                 };
             }
 
-            return $"{safeName}_{now:yyyy-MM-dd_HH-mm-ss}";
+            return $"{safeName}_{now.AddDays(report.ReportRecordDateOffsetDays):yyyy-MM-dd_HH-mm-ss}";
         }
 
         /// <summary>
@@ -94,7 +115,7 @@ namespace ARS.Classess.Utils
                 await _dbContext.SaveChangesAsync();
            
 
-            Logger.LogToFile(logPath, logFileName, $"STARTING EXECUTION ID: {execution.Id} FOR {executionName}");
+            Logger.LogToFile(logPath, logFileName, $"STARTING EXECUTION ID: {execution.Id} FOR REPORT {safeName} for records {executionName}");
             Logger.LogToFile(logPath, logFileName, $"STEP 1: RUN SQL");
 
             string resultFilePath = Path.Combine(executionResultPath, executionName +
@@ -316,6 +337,11 @@ namespace ARS.Classess.Utils
      string logPath,
      string logFileName)
         {
+
+            DateTime current_date = DateTime.Now;
+            DateTime record_date = current_date.AddDays(report.ReportRecordDateOffsetDays);
+          
+
             var records = new List<EmailSentRecord>();
             var recipients = new List<string>();
 
@@ -324,18 +350,20 @@ namespace ARS.Classess.Utils
 
 
             string linkOrFallback = "";
-            try {
+            try
+            {
                 linkOrFallback = await _linkGenerator.GenerateAsync(executionId, attachmentPath, TimeSpan.FromDays(_tokenExpiryDays));
                 Logger.LogToFile(logPath, logFileName, $"Download link generated: {linkOrFallback}");
             }
             catch (Exception ex)
             {
                 Logger.LogToFile(logPath, logFileName, $"Error when generating download link {ex.ToString()}");
-                 
+
                 return records;
 
             }
-           
+
+            
             int id = 1;
             foreach (var email in recipients.Select(e => e.Trim()).Where(e => !string.IsNullOrEmpty(e)))
             {
@@ -344,9 +372,16 @@ namespace ARS.Classess.Utils
 
                 try
                 {
-                    string subject = (report.EmailSubject ?? "Report: {{reportName}}")
-                        .Replace("{{reportName}}", report.Name)
-                        .Replace("{{date}}", DateTime.Now.ToString("yyyy-MM-dd"));
+                    string subject = string.Empty;
+
+                    if (string.IsNullOrEmpty(report.EmailSubject))
+                    {
+                        subject = "Autp Report for:" + report.Name + "Records for " + record_date.ToString("yyyy-MM-dd");
+                    }
+                    else
+                    {
+                        subject = report.EmailSubject + " - " + record_date.ToString("yyyy-MM-dd");
+                    }
 
                     string body = (report.EmailBodyTemplate ?? "Please find the attached report.");
                         //+ $"\n\nDownload link: {linkOrFallback}";

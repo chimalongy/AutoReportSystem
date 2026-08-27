@@ -136,6 +136,9 @@ namespace ARS.Models
         public ICollection<ReportDistributionDestination> DistributionDestinations { get; set; } = new List<ReportDistributionDestination>();
 
 
+        [Required]
+        [Column("report_record_date_offset_days")]
+        public int ReportRecordDateOffsetDays { get; set; } = 0;
 
 
 
@@ -143,4 +146,54 @@ namespace ARS.Models
 
 
     }
+
+
+    public class ReportDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int DbConnectionConfigId { get; set; }
+        public string Query { get; set; } = string.Empty;
+        public string OutputFileName { get; set; } = string.Empty;
+        public string OutputFormat { get; set; } = string.Empty;
+        public string ExecutionType { get; set; } = string.Empty;
+        public string? SingleRunTiming { get; set; }
+        public DateTime? SingleRunDateTime { get; set; }
+        public string? ScheduleFrequency { get; set; }
+        public string? ScheduleDaysOfWeek { get; set; }
+        public int? ScheduleDayOfMonth { get; set; }
+        public string? ScheduleCustomDates { get; set; }
+        public string? ScheduleCustomRecurring { get; set; }
+        public string? ScheduleTime { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime? LastRunDate { get; set; }
+        public DateTime? NextRunDate { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public string? LastErrorMessage { get; set; }
+        public bool EnableEmailDistribution { get; set; }
+        public string? EmailToRecipients { get; set; }
+        public string? EmailCcRecipients { get; set; }
+        public string? EmailBccRecipients { get; set; }
+        public string? EmailSubject { get; set; }
+        public string? EmailBodyTemplate { get; set; }
+        public bool EnableFileSave { get; set; }
+        public string? FileSavePath { get; set; }
+        public int? MaxRowsPerSheet { get; set; }
+        public List<DistributionDestinationDto> DistributionDestinations { get; set; } = new();
+    }
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
 }

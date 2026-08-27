@@ -1,4 +1,4 @@
-@model ARS.Models.Report
+@model ARS.Models.ViewModels.ReportDetailViewModel
 @{
     ViewData["Title"] = Model.Name;
     ViewData["ActivePage"] = "Reports";
@@ -6,15 +6,6 @@
 
     var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
     var isSuperAdmin = role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
-
-    var statusClass = Model.Status switch
-    {
-        "active"   => "bg-emerald-50 text-emerald-600 border-emerald-200",
-        "inactive" => "bg-red-50 text-red-600 border-red-200",
-        "running"  => "bg-blue-50 text-blue-600 border-blue-200",
-        "error"    => "bg-amber-50 text-amber-600 border-amber-200",
-        _          => "bg-slate-50 text-slate-600 border-slate-200"
-    };
 }
 
 <style>
@@ -64,39 +55,6 @@
     .accordion-inner { overflow: hidden; padding: 0 1.25rem; }
     .accordion-body.open .accordion-inner { padding: 0 1.25rem 1.25rem; }
 
-    /* ── Execution nested accordions ── */
-    .exec-accordion {
-        border: 1px solid var(--color-border, #e2e8f0);
-        border-radius: 0.625rem;
-        background: var(--color-surface-card, #fff);
-        overflow: hidden;
-    }
-    .exec-header {
-        display: flex;
-        align-items: center;
-        gap: 0.625rem;
-        padding: 0.625rem 0.875rem;
-        cursor: pointer;
-        user-select: none;
-        transition: background 0.15s ease;
-    }
-    .exec-header:hover { background: var(--color-surface, #f8fafc); }
-    .exec-header.active { background: var(--color-surface, #f8fafc); }
-    .exec-header .accordion-icon { margin-left: auto; }
-    .exec-header.active .accordion-icon { transform: rotate(180deg); }
-
-    .exec-id-badge {
-        font-size: 0.6875rem;
-        font-weight: 600;
-        color: var(--color-text-muted);
-        background: var(--color-surface, #f8fafc);
-        border: 1px solid var(--color-border, #e2e8f0);
-        border-radius: 0.375rem;
-        padding: 0.125rem 0.5rem;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
     /* ── Query box ── */
     .query-box {
         background: #0f172a;
@@ -138,7 +96,6 @@
         word-break: break-word;
     }
 
-    /* ── Meta badge (status pill in hero) ── */
     .meta-badge {
         display: inline-flex;
         align-items: center;
@@ -150,12 +107,6 @@
         border: 1px solid;
     }
 
-    /* ── Execution status badges ── */
-    .exec-badge-running   { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
-    .exec-badge-completed { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
-    .exec-badge-failed    { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
-
-    /* ── Delivery items ── */
     .delivery-item {
         display: flex;
         align-items: center;
@@ -166,19 +117,18 @@
         border: 1px solid var(--color-border, #e2e8f0);
         font-size: 0.75rem;
     }
-    .delivery-status-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
+
+    .dest-type-badge {
+        font-size: 0.625rem;
+        font-weight: 700;
+        padding: 0.15rem 0.5rem;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
         flex-shrink: 0;
     }
-    .delivery-status-sent    { background: #22c55e; }
-    .delivery-status-failed  { background: #ef4444; }
-    .delivery-status-pending { background: #f59e0b; }
-
-    /* ── Misc ── */
-    @@keyframes spin { to { transform: rotate(360deg); } }
-    .spinner { animation: spin 0.7s linear infinite; }
+    .dest-type-email { background: #dbeafe; color: #1d4ed8; }
+    .dest-type-file   { background: #dcfce7; color: #15803d; }
 
     .copy-toast {
         position: fixed;
@@ -199,27 +149,78 @@
     }
     .copy-toast.show { opacity: 1; transform: translateY(0); }
 
-    /* ── Log Modal ── */
-    #logModal {
-        transition: opacity 0.2s ease;
+    /* ── Load button ── */
+    .load-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #2563eb;
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        padding: 0.5rem 0.875rem;
+        border-radius: 0.625rem;
+        cursor: pointer;
+        transition: background 0.15s ease;
     }
-    #logModalPanel {
-        transition: transform 0.2s ease, opacity 0.2s ease;
+    .load-btn:hover { background: #dbeafe; }
+    .load-btn:disabled { opacity: 0.6; cursor: default; }
+    .load-btn .spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid #93c5fd;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        display: none;
     }
-    #logModal.modal-visible {
-        opacity: 1;
-        pointer-events: auto;
+    .load-btn.loading .spinner { display: inline-block; }
+    .load-btn.loading .load-label { display: none; }
+    @@keyframes spin { to { transform: rotate(360deg); } }
+
+    .load-error {
+        font-size: 0.75rem;
+        color: #dc2626;
+        margin-top: 0.5rem;
     }
-    #logModal.modal-hidden {
-        opacity: 0;
-        pointer-events: none;
+
+    /* ── Modal ── */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+        padding: 1rem;
     }
-    #logModal.modal-visible #logModalPanel {
-        transform: translateY(0);
+    .modal-overlay.show { display: flex; }
+    .modal-panel {
+        background: #fff;
+        border-radius: 1rem;
+        width: 100%;
+        max-width: 480px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
     }
-    #logModal.modal-hidden #logModalPanel {
-        transform: translateY(8px);
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-border, #e2e8f0);
     }
+    .modal-close {
+        cursor: pointer;
+        color: var(--color-text-muted);
+        background: none;
+        border: none;
+        padding: 0.25rem;
+    }
+    .modal-body { padding: 1.25rem 1.5rem 1.5rem; }
 </style>
 
 @* ── Breadcrumb ── *@
@@ -250,51 +251,21 @@
             </div>
             <div>
                 <h1 class="text-text-primary text-xl font-semibold">@Model.Name</h1>
-                <div class="flex items-center gap-2 mt-1.5">
-                    <span class="meta-badge @statusClass">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
-                        @(Model.Status ?? "active")
-                    </span>
-                    <span class="text-text-muted text-xs">@Model.ExecutionType · @Model.OutputFormat.ToUpper()</span>
-                </div>
+                <p class="text-text-muted text-xs mt-1">Report ID: @Model.ReportId</p>
             </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
+            <a href="/Dashboard/Reports/@Uri.EscapeDataString(Model.Name)/Executions"
+               class="px-3.5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 20v-6M6 20V10M18 20V4"/>
+                </svg>
+                View Executions
+            </a>
             <a href="/Dashboard/Reports"
                class="px-3.5 py-2 text-sm text-text-secondary border border-border rounded-xl hover:bg-surface transition-colors">
                 Back
             </a>
-        </div>
-    </div>
-
-    @* Quick meta row *@
-    <div class="flex items-center gap-6 mt-4 pt-4 border-t border-border text-xs text-text-muted flex-wrap">
-        @if (Model.LastRunDate.HasValue)
-        {
-            <div class="flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                Last run: @Model.LastRunDate.Value.ToString("dd MMM yyyy, HH:mm")
-            </div>
-        }
-        @if (Model.NextRunDate.HasValue)
-        {
-            <div class="flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                Next run: @Model.NextRunDate.Value.ToString("dd MMM yyyy, HH:mm")
-            </div>
-        }
-        <div class="flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M12 2a10 10 0 0 0-10 10c0 5.523 4.477 10 10 10s10-4.477 10-10A10 10 0 0 0 12 2zm0 16v-4m0-4h.01"/>
-            </svg>
-            Created: @Model.CreatedAt.ToString("dd MMM yyyy")
         </div>
     </div>
 </div>
@@ -333,7 +304,7 @@
         </div>
     </div>
 
-    @* ── Section 2: Basic Information ── *@
+    @* ── Section 2: Basic Information (partial + "View More") ── *@
     <div class="accordion-item">
         <div class="accordion-header" onclick="toggleAccordion(this)">
             <div class="flex items-center gap-3">
@@ -347,7 +318,7 @@
                 </div>
                 <div>
                     <h3 class="text-text-primary text-sm font-semibold">Basic Information</h3>
-                    <p class="text-text-muted text-xs">Name, format, and file details</p>
+                    <p class="text-text-muted text-xs">Name, output, and row settings</p>
                 </div>
             </div>
             <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -356,40 +327,29 @@
         </div>
         <div class="accordion-body">
             <div class="accordion-inner">
-                <div class="info-grid">
+                <div class="info-grid" id="basicInfoGrid">
                     <div class="info-item">
                         <div class="info-label">Report Name</div>
                         <div class="info-value">@Model.Name</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Output Format</div>
-                        <div class="info-value uppercase">@Model.OutputFormat</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Output File</div>
-                        <div class="info-value font-mono text-xs">@Model.OutputFileName</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Created</div>
-                        <div class="info-value">@Model.CreatedAt.ToString("dd MMM yyyy, HH:mm")</div>
-                    </div>
-                    @if (Model.UpdatedAt.HasValue)
-                    {
-                        <div class="info-item">
-                            <div class="info-label">Updated</div>
-                            <div class="info-value">@Model.UpdatedAt.Value.ToString("dd MMM yyyy, HH:mm")</div>
-                        </div>
-                    }
-                    <div class="info-item">
-                        <div class="info-label">Execution Type</div>
-                        <div class="info-value capitalize">@Model.ExecutionType</div>
+                        <div class="info-label">Max Rows Per Sheet</div>
+                        <div class="info-value">@(Model.MaxRowsPerSheet?.ToString() ?? "—")</div>
                     </div>
                 </div>
+
+                <div id="basicInfoExtra" class="info-grid mt-3" style="display:none;"></div>
+                <div id="basicInfoError" class="load-error" style="display:none;"></div>
+
+                <button id="viewMoreBtn" class="load-btn mt-3" onclick="loadBasicInfoExtra()">
+                    <span class="spinner"></span>
+                    <span class="load-label">View More</span>
+                </button>
             </div>
         </div>
     </div>
 
-    @* ── Section 3: Database Connection ── *@
+    @* ── Section 3: Database Connection (partial + modal) ── *@
     <div class="accordion-item">
         <div class="accordion-header" onclick="toggleAccordion(this)">
             <div class="flex items-center gap-3">
@@ -413,27 +373,24 @@
             <div class="accordion-inner">
                 <div class="info-grid">
                     <div class="info-item">
+                        <div class="info-label">Config ID</div>
+                        <div class="info-value">@(Model.DbConfigId?.ToString() ?? "—")</div>
+                    </div>
+                    <div class="info-item">
                         <div class="info-label">Database Name</div>
-                        <div class="info-value">@(Model.DbConnectionConfig?.DatabaseName ?? "Unknown")</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Database Type</div>
-                        <div class="info-value">@(Model.DbConnectionConfig?.DatabaseType ?? "Unknown")</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Host</div>
-                        <div class="info-value">@(Model.DbConnectionConfig?.Host ?? "Unknown")</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Port</div>
-                        <div class="info-value">@(Model.DbConnectionConfig?.Port.ToString() ?? "—")</div>
+                        <div class="info-value">@(Model.DbConfigDatabaseName ?? "Unknown")</div>
                     </div>
                 </div>
+
+                <button class="load-btn mt-3" onclick="openDbConfigModal()">
+                    <span class="spinner"></span>
+                    <span class="load-label">View Full Details</span>
+                </button>
             </div>
         </div>
     </div>
 
-    @* ── Section 4: Schedule Configuration ── *@
+    @* ── Section 4: Schedule Configuration (button-loaded) ── *@
     <div class="accordion-item">
         <div class="accordion-header" onclick="toggleAccordion(this)">
             <div class="flex items-center gap-3">
@@ -444,7 +401,7 @@
                 </div>
                 <div>
                     <h3 class="text-text-primary text-sm font-semibold">Schedule Configuration</h3>
-                    <p class="text-text-muted text-xs" id="scheduleSummary">Loading...</p>
+                    <p class="text-text-muted text-xs">Automation timing settings</p>
                 </div>
             </div>
             <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -453,42 +410,17 @@
         </div>
         <div class="accordion-body">
             <div class="accordion-inner">
-                <div class="info-grid" id="scheduleGrid">
-                    <div class="info-item">
-                        <div class="info-label">Execution Type</div>
-                        <div class="info-value capitalize">@Model.ExecutionType</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Frequency</div>
-                        <div class="info-value" id="scheduleFreqLabel">—</div>
-                    </div>
-                    @if (Model.ExecutionType == "single" && Model.SingleRunTiming == "scheduled" && Model.SingleRunDateTime.HasValue)
-                    {
-                        <div class="info-item">
-                            <div class="info-label">Scheduled For</div>
-                            <div class="info-value">@Model.SingleRunDateTime.Value.ToString("dd MMM yyyy, HH:mm")</div>
-                        </div>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.ScheduleTime))
-                    {
-                        <div class="info-item">
-                            <div class="info-label">Time of Day</div>
-                            <div class="info-value">@Model.ScheduleTime</div>
-                        </div>
-                    }
-                    @if (Model.ScheduleDayOfMonth.HasValue)
-                    {
-                        <div class="info-item">
-                            <div class="info-label">Day of Month</div>
-                            <div class="info-value">@Model.ScheduleDayOfMonth</div>
-                        </div>
-                    }
-                </div>
+                <div id="scheduleGrid" class="info-grid" style="display:none;"></div>
+                <div id="scheduleError" class="load-error" style="display:none;"></div>
+                <button id="scheduleLoadBtn" class="load-btn" onclick="loadSchedule()">
+                    <span class="spinner"></span>
+                    <span class="load-label">Load Schedule</span>
+                </button>
             </div>
         </div>
     </div>
 
-    @* ── Section 5: Distribution Configuration ── *@
+    @* ── Section 5: Distribution Configuration (button-loaded) ── *@
     <div class="accordion-item">
         <div class="accordion-header" onclick="toggleAccordion(this)">
             <div class="flex items-center gap-3">
@@ -509,200 +441,47 @@
         </div>
         <div class="accordion-body">
             <div class="accordion-inner">
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Email Distribution</div>
-                        <div class="info-value">@(Model.EnableEmailDistribution ? "Enabled" : "Disabled")</div>
-                    </div>
-                    @if (Model.EnableEmailDistribution)
-                    {
-                        <div class="info-item">
-                            <div class="info-label">To Recipients</div>
-                            <div class="info-value text-xs">@(Model.EmailToRecipients ?? "—")</div>
-                        </div>
-                        @if (!string.IsNullOrEmpty(Model.EmailCcRecipients))
-                        {
-                            <div class="info-item">
-                                <div class="info-label">CC Recipients</div>
-                                <div class="info-value text-xs">@Model.EmailCcRecipients</div>
-                            </div>
-                        }
-                        @if (!string.IsNullOrEmpty(Model.EmailBccRecipients))
-                        {
-                            <div class="info-item">
-                                <div class="info-label">BCC Recipients</div>
-                                <div class="info-value text-xs">@Model.EmailBccRecipients</div>
-                            </div>
-                        }
-                        <div class="info-item">
-                            <div class="info-label">Email Subject</div>
-                            <div class="info-value text-xs">@(Model.EmailSubject ?? "—")</div>
-                        </div>
-                    }
-                    <div class="info-item">
-                        <div class="info-label">File Save</div>
-                        <div class="info-value">@(Model.EnableFileSave ? "Enabled" : "Disabled")</div>
-                    </div>
-                    @if (Model.EnableFileSave)
-                    {
-                        <div class="info-item">
-                            <div class="info-label">Save Path</div>
-                            <div class="info-value font-mono text-xs">@(Model.FileSavePath ?? "—")</div>
-                        </div>
-                    }
-                </div>
-
-                @if (Model.DistributionDestinations?.Any() == true)
-                {
-                    <div class="mt-4">
-                        <div class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Additional Destinations</div>
-                        <div class="space-y-2">
-                            @foreach (var dest in Model.DistributionDestinations.Where(d => d.IsActive))
-                            {
-                                <div class="flex items-center gap-2 p-2.5 bg-surface rounded-lg border border-border">
-                                    @if (dest.DestinationType == "email")
-                                    {
-                                        <span class="dest-type-badge dest-type-email">Email</span>
-                                        <span class="text-xs text-text-secondary truncate">@dest.EmailTo</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="dest-type-badge dest-type-file">File</span>
-                                        <span class="text-xs text-text-secondary font-mono truncate">@dest.FilePath</span>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
+                <div id="distributionsList" class="space-y-2" style="display:none;"></div>
+                <div id="distributionsEmpty" class="text-xs text-text-muted" style="display:none;">No distribution destinations configured.</div>
+                <div id="distributionsError" class="load-error" style="display:none;"></div>
+                <button id="distributionsLoadBtn" class="load-btn" onclick="loadDistributions()">
+                    <span class="spinner"></span>
+                    <span class="load-label">Load Distribution</span>
+                </button>
             </div>
         </div>
     </div>
 
-    @* ── Section 6: Execution History ── *@
-    <div class="accordion-item fade-up fade-up-3">
-        <div class="accordion-header" onclick="toggleAccordion(this)">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M12 20v-6M6 20V10M18 20V4"/>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-text-primary text-sm font-semibold">Execution History</h3>
-                    <p class="text-text-muted text-xs" id="historySubtitle">Past runs and delivery results</p>
-                </div>
-            </div>
-            <svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                <path d="M6 9l6 6 6-6"/>
-            </svg>
+</div>
+
+@* ── DB Config Modal ── *@
+<div id="dbConfigModal" class="modal-overlay" onclick="if(event.target === this) closeDbConfigModal()">
+    <div class="modal-panel">
+        <div class="modal-header">
+            <h3 class="text-text-primary text-sm font-semibold">Database Connection Details</h3>
+            <button class="modal-close" onclick="closeDbConfigModal()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
-        <div class="accordion-body">
-            <div class="accordion-inner">
-                <div id="historyArea" class="text-center py-6 text-text-muted text-sm">
-                    <svg class="w-5 h-5 mx-auto mb-2 spinner text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
-                    <span class="text-xs">Loading history...</span>
-                </div>
-            </div>
+        <div class="modal-body">
+            <div id="dbConfigModalLoading" class="text-xs text-text-muted">Loading…</div>
+            <div id="dbConfigModalError" class="load-error" style="display:none;"></div>
+            <div id="dbConfigModalGrid" class="info-grid" style="display:none;"></div>
         </div>
     </div>
-
 </div>
 
 @* ── Copy Toast ── *@
 <div id="copyToast" class="copy-toast">Query copied to clipboard</div>
 
-@* ── Download Toast (used by execution result downloads) ── *@
-<div id="downloadToast" class="copy-toast">
-    <div class="flex items-center gap-2">
-        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-        </svg>
-        <span id="downloadToastMsg">Downloading…</span>
-    </div>
-</div>
-
-@* ── Log Viewer Modal ── *@
-<div id="logModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-hidden">
-    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeLogModal()"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col" id="logModalPanel">
-
-        @* Modal Header *@
-        <div class="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-text-primary text-sm font-semibold" id="logModalTitle">Execution Logs</h3>
-                    <p class="text-text-muted text-xs" id="logModalSubtitle">Loading…</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <button onclick="downloadCurrentLog()" id="logDownloadBtn"
-                        class="hidden px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-surface transition-colors text-text-secondary flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-                    </svg>
-                    Download Log
-                </button>
-                <button onclick="closeLogModal()"
-                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface transition-colors text-text-muted hover:text-text-primary">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                        <path d="M18 6L6 18M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        @* Modal Body — scrollable log content *@
-        <div class="overflow-auto flex-1 p-4" id="logModalScroll">
-            <div id="logModalContent" class="text-center py-8 text-text-muted text-sm">
-                <svg class="w-5 h-5 mx-auto mb-2 spinner text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                </svg>
-                Loading logs…
-            </div>
-        </div>
-
-        @* Modal Footer *@
-        <div class="px-5 py-3 border-t border-border flex items-center justify-between flex-shrink-0">
-            <span class="text-xs text-text-muted" id="logModalFooter"></span>
-            <button onclick="scrollLogsToBottom()"
-                    class="text-xs text-text-muted hover:text-text-primary flex items-center gap-1.5 transition-colors">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M12 5v14M5 12l7 7 7-7"/>
-                </svg>
-                Scroll to bottom
-            </button>
-        </div>
-
-    </div>
-</div>
-
 @section Scripts {
 <script>
-    var reportId   = @Model.Id;
-    var reportData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
-        Model.ExecutionType,
-        Model.SingleRunTiming,
-        Model.SingleRunDateTime,
-        Model.ScheduleFrequency,
-        Model.ScheduleDaysOfWeek,
-        Model.ScheduleDayOfMonth,
-        Model.ScheduleCustomDates,
-        Model.ScheduleCustomRecurring,
-        ScheduleTime = Model.ScheduleTime
-    }));
+    var reportName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Name));
+    var baseUrl = '/Dashboard/Reports/' + encodeURIComponent(reportName);
 
-    // ── Outer accordion toggle ──
+    // ── Accordion toggle ──
     function toggleAccordion(header) {
         var body   = header.nextElementSibling;
         var isOpen = body.classList.contains('open');
@@ -710,43 +489,123 @@
         body.classList.toggle('open', !isOpen);
     }
 
-    // ── Inner execution accordion toggle ──
-    function toggleExec(header) {
-        var body   = header.nextElementSibling;
-        var isOpen = body.classList.contains('open');
-        header.classList.toggle('active', !isOpen);
-        body.classList.toggle('open', !isOpen);
+    function setBtnLoading(btn, loading) {
+        btn.classList.toggle('loading', loading);
+        btn.disabled = loading;
     }
 
-    // ── Schedule label ──
+    function fmtDate(value) {
+        if (!value) return '—';
+        var d = new Date(value);
+        return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ── Section 2: View More (report extra fields) ──
+    async function loadBasicInfoExtra() {
+        var btn = document.getElementById('viewMoreBtn');
+        var grid = document.getElementById('basicInfoExtra');
+        var errBox = document.getElementById('basicInfoError');
+        errBox.style.display = 'none';
+        setBtnLoading(btn, true);
+        try {
+            var res = await fetch(baseUrl + '/Details');
+            if (!res.ok) throw new Error('Request failed (' + res.status + ')');
+            var d = await res.json();
+
+            grid.innerHTML =
+                infoItem('Output Format', (d.outputFormat || '—').toUpperCase()) +
+                infoItem('Output File', d.outputFileName || '—') +
+                infoItem('Status', d.status || '—') +
+                infoItem('Last Run', fmtDate(d.lastRunDate)) +
+                infoItem('Next Run', fmtDate(d.nextRunDate)) +
+                infoItem('Created', fmtDate(d.createdAt)) +
+                infoItem('Updated', fmtDate(d.updatedAt)) +
+                infoItem('Created By (User ID)', d.createdByUserId != null ? d.createdByUserId : '—') +
+                (d.lastErrorMessage ? infoItem('Last Error', d.lastErrorMessage) : '');
+
+            grid.style.display = 'grid';
+            btn.style.display = 'none';
+        } catch (e) {
+            errBox.textContent = 'Could not load additional details. Please try again.';
+            errBox.style.display = 'block';
+        } finally {
+            setBtnLoading(btn, false);
+        }
+    }
+
+    function infoItem(label, value) {
+        return '<div class="info-item"><div class="info-label">' + label + '</div>' +
+               '<div class="info-value">' + (value === null || value === undefined || value === '' ? '—' : value) + '</div></div>';
+    }
+
+    // ── Section 3: DB Config modal ──
+    async function openDbConfigModal() {
+        var modal = document.getElementById('dbConfigModal');
+        var loading = document.getElementById('dbConfigModalLoading');
+        var errBox = document.getElementById('dbConfigModalError');
+        var grid = document.getElementById('dbConfigModalGrid');
+
+        modal.classList.add('show');
+        loading.style.display = 'block';
+        errBox.style.display = 'none';
+        grid.style.display = 'none';
+        grid.innerHTML = '';
+
+        try {
+            var res = await fetch(baseUrl + '/DbConfig');
+            if (!res.ok) throw new Error('Request failed (' + res.status + ')');
+            var d = await res.json();
+
+            grid.innerHTML =
+                infoItem('Config ID', d.id) +
+                infoItem('Database Type', d.databaseType) +
+                infoItem('Host', d.host) +
+                infoItem('Port', d.port) +
+                infoItem('Database Name', d.databaseName) +
+                infoItem('Username', d.username) +
+                infoItem('Status', d.status) +
+                infoItem('Created', fmtDate(d.createdAt)) +
+                infoItem('Updated', fmtDate(d.updatedAt));
+
+            grid.style.display = 'grid';
+        } catch (e) {
+            errBox.textContent = 'Could not load database connection details.';
+            errBox.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    function closeDbConfigModal() {
+        document.getElementById('dbConfigModal').classList.remove('show');
+    }
+
+    // ── Section 4: Schedule ──
     function getScheduleLabel(r) {
-        if (r.ExecutionType === 'single') {
-            if (r.SingleRunTiming === 'immediately') return 'Run Once (Immediate)';
-            if (r.SingleRunTiming === 'scheduled' && r.SingleRunDateTime)
-                return 'Run Once: ' + new Date(r.SingleRunDateTime).toLocaleString('en-GB', {
-                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-                });
+        if (r.executionType === 'single') {
+            if (r.singleRunTiming === 'immediately') return 'Run Once (Immediate)';
+            if (r.singleRunTiming === 'scheduled' && r.singleRunDateTime) return 'Run Once: ' + fmtDate(r.singleRunDateTime);
             return 'Single Run';
         }
-        if (r.ExecutionType === 'scheduled') {
-            var freq = r.ScheduleFrequency;
-            if (freq === 'daily')   return 'Daily' + (r.ScheduleTime ? ' at ' + r.ScheduleTime.substring(0, 5) : '');
+        if (r.executionType === 'scheduled') {
+            var freq = r.scheduleFrequency;
+            if (freq === 'daily') return 'Daily' + (r.scheduleTime ? ' at ' + r.scheduleTime.substring(0, 5) : '');
             if (freq === 'weekly') {
                 try {
-                    var days = r.ScheduleDaysOfWeek ? JSON.parse(r.ScheduleDaysOfWeek) : [];
+                    var days = r.scheduleDaysOfWeek ? JSON.parse(r.scheduleDaysOfWeek) : [];
                     return 'Weekly' + (days.length ? ' (' + days.join(', ') + ')' : '');
                 } catch (e) { return 'Weekly'; }
             }
-            if (freq === 'monthly')          return 'Monthly (Day ' + r.ScheduleDayOfMonth + ')';
+            if (freq === 'monthly') return 'Monthly (Day ' + r.scheduleDayOfMonth + ')';
             if (freq === 'custom_dates') {
                 try {
-                    var dates = r.ScheduleCustomDates ? JSON.parse(r.ScheduleCustomDates) : [];
+                    var dates = r.scheduleCustomDates ? JSON.parse(r.scheduleCustomDates) : [];
                     return dates.length + ' custom date' + (dates.length !== 1 ? 's' : '');
                 } catch (e) { return 'Custom Dates'; }
             }
             if (freq === 'custom_recurring') {
                 try {
-                    var rec = r.ScheduleCustomRecurring ? JSON.parse(r.ScheduleCustomRecurring) : [];
+                    var rec = r.scheduleCustomRecurring ? JSON.parse(r.scheduleCustomRecurring) : [];
                     return rec.length + ' scheduled run' + (rec.length !== 1 ? 's' : '');
                 } catch (e) { return 'Custom Recurring'; }
             }
@@ -755,8 +614,69 @@
         return '—';
     }
 
-    document.getElementById('scheduleSummary').textContent  = getScheduleLabel(reportData);
-    document.getElementById('scheduleFreqLabel').textContent = getScheduleLabel(reportData);
+    async function loadSchedule() {
+        var btn = document.getElementById('scheduleLoadBtn');
+        var grid = document.getElementById('scheduleGrid');
+        var errBox = document.getElementById('scheduleError');
+        errBox.style.display = 'none';
+        setBtnLoading(btn, true);
+        try {
+            var res = await fetch(baseUrl + '/Schedule');
+            if (!res.ok) throw new Error('Request failed (' + res.status + ')');
+            var d = await res.json();
+
+            grid.innerHTML =
+                infoItem('Execution Type', d.executionType) +
+                infoItem('Summary', getScheduleLabel(d)) +
+                (d.singleRunDateTime ? infoItem('Scheduled For', fmtDate(d.singleRunDateTime)) : '') +
+                (d.scheduleTime ? infoItem('Time of Day', d.scheduleTime) : '') +
+                (d.scheduleDayOfMonth ? infoItem('Day of Month', d.scheduleDayOfMonth) : '');
+
+            grid.style.display = 'grid';
+            btn.style.display = 'none';
+        } catch (e) {
+            errBox.textContent = 'Could not load schedule configuration.';
+            errBox.style.display = 'block';
+        } finally {
+            setBtnLoading(btn, false);
+        }
+    }
+
+    // ── Section 5: Distributions ──
+    async function loadDistributions() {
+        var btn = document.getElementById('distributionsLoadBtn');
+        var list = document.getElementById('distributionsList');
+        var empty = document.getElementById('distributionsEmpty');
+        var errBox = document.getElementById('distributionsError');
+        errBox.style.display = 'none';
+        setBtnLoading(btn, true);
+        try {
+            var res = await fetch(baseUrl + '/Distributions');
+            if (!res.ok) throw new Error('Request failed (' + res.status + ')');
+            var items = await res.json();
+            var active = items.filter(function (d) { return d.isActive; });
+
+            if (active.length === 0) {
+                empty.style.display = 'block';
+            } else {
+                list.innerHTML = active.map(function (dest) {
+                    if (dest.destinationType === 'email') {
+                        return '<div class="delivery-item"><span class="dest-type-badge dest-type-email">Email</span>' +
+                               '<span class="truncate">' + (dest.emailTo || '—') + '</span></div>';
+                    }
+                    return '<div class="delivery-item"><span class="dest-type-badge dest-type-file">File</span>' +
+                           '<span class="font-mono truncate">' + (dest.filePath || '—') + '</span></div>';
+                }).join('');
+                list.style.display = 'block';
+            }
+            btn.style.display = 'none';
+        } catch (e) {
+            errBox.textContent = 'Could not load distribution destinations.';
+            errBox.style.display = 'block';
+        } finally {
+            setBtnLoading(btn, false);
+        }
+    }
 
     // ── Copy query ──
     function copyQuery() {
@@ -767,340 +687,5 @@
             setTimeout(function () { toast.classList.remove('show'); }, 2000);
         });
     }
-
-    // ── Helpers ──
-    function escHtml(str) {
-        return String(str || '')
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function fmtDate(iso) {
-        if (!iso) return '—';
-        return new Date(iso).toLocaleString('en-GB', {
-            day: '2-digit', month: 'short', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    }
-
-    function formatDuration(start, end) {
-        if (!end) return '—';
-        var diff = new Date(end) - new Date(start);
-        var mins = Math.floor(diff / 60000);
-        var secs = Math.floor((diff % 60000) / 1000);
-        return mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
-    }
-
-    function dotClass(status) {
-        if (status === 'sent' || status === 'saved') return 'delivery-status-sent';
-        if (status === 'failed')                     return 'delivery-status-failed';
-        return 'delivery-status-pending';
-    }
-
-    function getExecStatusClass(status) {
-        if (status === 'completed') return 'exec-badge-completed';
-        if (status === 'failed')    return 'exec-badge-failed';
-        return 'exec-badge-running';
-    }
-
-    // ── Build delivery rows block (emails or files) ──
-    function buildDeliveryRows(items, isFile) {
-        if (!items || !items.length) return '';
-
-        var label   = isFile ? 'Files' : 'Emails';
-        var iconSvg = isFile
-            ? '<svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-            : '<svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>';
-
-        var rows = items.map(function (item) {
-            var target    = isFile ? escHtml(item.path) : escHtml(item.email);
-            var monoClass = isFile ? ' font-mono' : '';
-            var errHtml   = item.errorMessage
-                ? '<span class="text-red-500 text-[10px] ml-1 cursor-help" title="' + escHtml(item.errorMessage) + '">⚠</span>'
-                : '';
-            return '<div class="delivery-item">'
-                + '<span class="delivery-status-dot ' + dotClass(item.status) + '"></span>'
-                + '<span class="text-text-secondary truncate flex-1' + monoClass + '">' + target + '</span>'
-                + '<span class="text-text-muted text-[10px] uppercase ml-2">' + escHtml(item.status) + '</span>'
-                + errHtml
-                + '</div>';
-        }).join('');
-
-        return '<div class="mt-3">'
-            + '<div class="text-[10px] font-semibold text-text-muted uppercase tracking-wide mb-1.5">' + iconSvg + label + '</div>'
-            + '<div class="space-y-1">' + rows + '</div>'
-            + '</div>';
-    }
-
-    // ── Escape string for use in HTML onclick attributes ──
-    function escAttr(str) {
-        if (!str) return '';
-        return str
-            .replace(/\\/g, '\\\\')
-            .replace(/'/g, "\\'")
-            .replace(/"/g, '&quot;')
-            .replace(/\n/g, '\\n')
-            .replace(/\r/g, '\\r');
-    }
-
-    // ── Build a single execution accordion ──
-    function buildExecAccordion(exec) {
-        var statusClass = getExecStatusClass(exec.executionStatus);
-        var duration    = formatDuration(exec.startTime, exec.endTime);
-
-        // Action buttons
-        var actionBtns = '';
-
-        // Logs button → opens log viewer modal
-        if (exec.executionLogsPath) {
-            var safeLogPath = escAttr(exec.executionLogsPath);
-            actionBtns += '<button'
-                + ' onclick="event.stopPropagation(); showLogs(\'' + safeLogPath + '\', ' + exec.id + ')"'
-                + ' class="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors flex items-center gap-1">'
-                + '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
-                + '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
-                + '<polyline points="14 2 14 8 20 8"/>'
-                + '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'
-                + '</svg>Logs</button>';
-        }
-
-        // Download button → downloads the execution result file
-        if (exec.executionResultPath) {
-            var safeResultPath = escAttr(exec.executionResultPath);
-            actionBtns += '<button'
-                + ' onclick="event.stopPropagation(); downloadResultFile(\'' + safeResultPath + '\', ' + exec.id + ')"'
-                + ' class="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-1">'
-                + '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
-                + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'
-                + '</svg>Download</button>';
-        }
-
-        // Expanded body content
-        var bodyContent = '';
-
-        // Meta chips
-        bodyContent += '<div class="flex gap-2 flex-wrap">'
-            + '<div class="info-item" style="padding:0.375rem 0.75rem">'
-            + '<div class="info-label">Row Count</div>'
-            + '<div class="info-value">' + (exec.rowCount != null ? exec.rowCount.toLocaleString() : '—') + '</div>'
-            + '</div>'
-            + '<div class="info-item" style="padding:0.375rem 0.75rem">'
-            + '<div class="info-label">Duration</div>'
-            + '<div class="info-value">' + duration + '</div>'
-            + '</div>'
-            + '</div>';
-
-        bodyContent += buildDeliveryRows(exec.emailsSent, false);
-        bodyContent += buildDeliveryRows(exec.filesSent,  true);
-
-        if (exec.errorMessage) {
-            bodyContent += '<div class="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">'
-                + '<span class="font-semibold">Error:</span> ' + escHtml(exec.errorMessage)
-                + '</div>';
-        }
-
-        return '<div class="exec-accordion">'
-            + '<div class="exec-header" onclick="toggleExec(this)">'
-            + '<span class="exec-id-badge">#' + exec.id + '</span>'
-            + '<div class="flex items-center gap-4 flex-1 min-w-0">'
-            + '<div>'
-            + '<div class="text-[10px] text-text-muted uppercase tracking-wide">Started</div>'
-            + '<div class="text-xs font-medium text-text-primary whitespace-nowrap">' + fmtDate(exec.startTime) + '</div>'
-            + '</div>'
-            + '<div>'
-            + '<div class="text-[10px] text-text-muted uppercase tracking-wide">Ended</div>'
-            + '<div class="text-xs font-medium text-text-primary whitespace-nowrap">' + fmtDate(exec.endTime) + '</div>'
-            + '</div>'
-            + '</div>'
-            + '<div class="flex items-center gap-2 flex-shrink-0" onclick="event.stopPropagation()">'
-            + '<span class="text-[11px] font-medium px-2.5 py-0.5 rounded-full border ' + statusClass + '">'
-            + escHtml(exec.executionStatus)
-            + '</span>'
-            + actionBtns
-            + '</div>'
-            + '<svg class="accordion-icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">'
-            + '<path d="M6 9l6 6 6-6"/></svg>'
-            + '</div>'
-            + '<div class="accordion-body">'
-            + '<div class="accordion-inner"><div class="space-y-2">' + bodyContent + '</div></div>'
-            + '</div>'
-            + '</div>';
-    }
-
-    // ── Load execution history ──
-    async function loadHistory() {
-        try {
-            var res = await fetch('/Dashboard/Reports/Executions/' + reportId);
-            if (!res.ok) throw new Error('Request failed');
-            var executions = await res.json();
-
-            var container = document.getElementById('historyArea');
-            var subtitle  = document.getElementById('historySubtitle');
-
-            if (executions.length === 0) {
-                subtitle.textContent = 'No runs yet';
-                container.innerHTML  = '<div class="flex flex-col items-center gap-2 py-6">'
-                    + '<svg class="w-8 h-8 text-text-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">'
-                    + '<path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/>'
-                    + '</svg>'
-                    + '<p class="text-text-muted text-xs">No execution history yet.</p>'
-                    + '</div>';
-                return;
-            }
-
-            subtitle.textContent = executions.length + ' run' + (executions.length !== 1 ? 's' : '');
-            container.innerHTML  = '<div class="space-y-2">'
-                + executions.map(buildExecAccordion).join('')
-                + '</div>';
-
-        } catch (err) {
-            document.getElementById('historyArea').innerHTML =
-                '<p class="text-text-muted text-xs py-4 text-center">Failed to load execution history.</p>';
-        }
-    }
-
-    loadHistory();
-
-    // ════════════════════════════════════════════════════════════════
-    // LOG MODAL
-    // ════════════════════════════════════════════════════════════════
-
-    var _currentLogPath = null;
-
-    function showLogs(logPath, execId) {
-        if (!logPath) {
-            console.error('Log path is empty');
-            return;
-        }
-
-        _currentLogPath = logPath;
-
-        // Reset modal state
-        document.getElementById('logModalTitle').textContent    = 'Execution Logs — #' + execId;
-        document.getElementById('logModalSubtitle').textContent = 'Loading…';
-        document.getElementById('logModalFooter').textContent   = '';
-        document.getElementById('logDownloadBtn').classList.add('hidden');
-        document.getElementById('logModalContent').innerHTML    =
-            '<div class="text-center py-8 text-text-muted text-sm">'
-            + '<svg class="w-5 h-5 mx-auto mb-2 spinner text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
-            + '<path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Loading logs…</div>';
-
-        // Open modal
-        var modal = document.getElementById('logModal');
-        modal.classList.remove('modal-hidden');
-        modal.classList.add('modal-visible');
-        document.body.style.overflow = 'hidden';
-
-        // Fetch log content
-        fetch('/Dashboard/Reports/ExecutionLogs?path=' + encodeURIComponent(logPath))
-            .then(function (r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status + ' — log file may have been removed.');
-                return r.text();
-            })
-            .then(function (text) {
-                var lines = text.split('\n');
-                var lineCount = lines.filter(function (l) { return l.trim() !== ''; }).length;
-
-                document.getElementById('logModalSubtitle').textContent = lineCount + ' line' + (lineCount !== 1 ? 's' : '');
-                document.getElementById('logModalFooter').textContent   = logPath;
-                document.getElementById('logDownloadBtn').classList.remove('hidden');
-
-                // Syntax-colorize log lines by severity keyword
-                var colored = lines.map(function (line) {
-                    var safe = escHtml(line);
-                    if (!safe.trim()) return '<span class="text-slate-600"> </span>';
-                    if (/\b(ERROR|FAIL|FAILED|EXCEPTION|CRITICAL)\b/i.test(line))
-                        return '<span class="text-red-400">' + safe + '</span>';
-                    if (/\b(WARN|WARNING)\b/i.test(line))
-                        return '<span class="text-amber-400">' + safe + '</span>';
-                    if (/\b(SUCCESS|COMPLETED|DONE|FINISH|OK)\b/i.test(line))
-                        return '<span class="text-emerald-400">' + safe + '</span>';
-                    if (/\b(INFO|START|STARTING|RUNNING|BEGIN|INIT)\b/i.test(line))
-                        return '<span class="text-sky-400">' + safe + '</span>';
-                    if (/\b(DEBUG|TRACE|VERBOSE)\b/i.test(line))
-                        return '<span class="text-slate-500">' + safe + '</span>';
-                    return '<span class="text-slate-300">' + safe + '</span>';
-                }).join('\n');
-
-                document.getElementById('logModalContent').innerHTML =
-                    '<pre id="logPre" style="'
-                    + 'background:#0f172a;'
-                    + 'color:#e2e8f0;'
-                    + 'font-family:\'SF Mono\',Monaco,\'Cascadia Code\',\'Fira Code\',monospace;'
-                    + 'font-size:0.73rem;'
-                    + 'line-height:1.75;'
-                    + 'padding:1rem;'
-                    + 'border-radius:0.625rem;'
-                    + 'overflow-x:auto;'
-                    + 'white-space:pre-wrap;'
-                    + 'word-break:break-all;'
-                    + '">' + colored + '</pre>';
-            })
-            .catch(function (err) {
-                document.getElementById('logModalSubtitle').textContent = 'Error';
-                document.getElementById('logModalContent').innerHTML =
-                    '<div class="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">'
-                    + '<svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
-                    + '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
-                    + '</svg>'
-                    + '<span>' + escHtml(err.message) + '</span>'
-                    + '</div>';
-            });
-    }
-
-    function closeLogModal() {
-        var modal = document.getElementById('logModal');
-        modal.classList.remove('modal-visible');
-        modal.classList.add('modal-hidden');
-        document.body.style.overflow = '';
-        _currentLogPath = null;
-    }
-
-    // Downloads the log file itself (button inside the modal header)
-    function downloadCurrentLog() {
-        if (_currentLogPath) {
-            window.location.href = '/Dashboard/Reports/ExecutionLogs?path='
-                + encodeURIComponent(_currentLogPath) + '&download=true';
-        }
-    }
-
-    function scrollLogsToBottom() {
-        var scroll = document.getElementById('logModalScroll');
-        if (scroll) scroll.scrollTop = scroll.scrollHeight;
-    }
-
-    // ── Per-execution result file download (Download button on each execution row) ──
-  function downloadResultFile(resultPath, execId) {
-    if (!execId) {
-        console.error('Execution ID is empty');
-        return;
-    }
-
-    var toast = document.getElementById('downloadToast');
-    var msg   = document.getElementById('downloadToastMsg');
-
-    msg.textContent = 'Starting download…';
-    toast.classList.add('show');
-
-    
-    var url = '/Dashboard/Reports/Executions/Download/' + execId;
-
-    var iframe = document.getElementById('downloadIframe');
-    if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'downloadIframe';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-    }
-    iframe.src = url;
-
-    msg.textContent = 'Download started!';
-    setTimeout(function () { toast.classList.remove('show'); }, 2500);
-}
-
-    // Close modal on Escape key
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closeLogModal();
-    });
 </script>
 }

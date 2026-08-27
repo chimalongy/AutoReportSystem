@@ -1,0 +1,978 @@
+@{
+    var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+    var isSuperAdmin = role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
+}
+
+@{
+    ViewData["Title"] = "Add Report";
+    ViewData["ActivePage"] = "Reports";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<style>
+    @@keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { opacity: 0; animation: fadeUp 0.45s ease forwards; }
+    .fade-up-1 { animation-delay: 0.05s; }
+    .fade-up-2 { animation-delay: 0.15s; }
+
+    .section-divider {
+        border-top: 1px solid var(--color-border);
+        margin: 1.25rem 0;
+        padding-top: 1.25rem;
+    }
+    .section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-text-muted);
+        margin-bottom: 0.75rem;
+    }
+    .radio-card {
+        border: 1px solid var(--color-border);
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .radio-card:hover { border-color: #93c5fd; background: #eff6ff; }
+    .radio-card.selected { border-color: #3b82f6; background: #eff6ff; }
+
+    .custom-date-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        color: #1e40af;
+    }
+    .custom-recurring-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.5rem;
+        background: var(--color-surface);
+        border-radius: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .freq-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border: 1px solid var(--color-border);
+        background: transparent;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .freq-btn:hover { background: var(--color-surface); }
+    .freq-btn.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+    .day-btn {
+        width: 2.25rem; height: 2.25rem;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 500;
+        border: 1px solid var(--color-border);
+        background: transparent;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .day-btn:hover { background: var(--color-surface); }
+    .day-btn.selected { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+    textarea.query-area {
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        font-size: 0.8rem;
+        line-height: 1.5;
+        min-height: 140px;
+        resize: vertical;
+    }
+
+    .dist-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .dist-toggle:hover { border-color: #93c5fd; }
+    .dist-toggle.active { border-color: #3b82f6; background: #eff6ff; }
+
+    .toggle-switch {
+        position: relative;
+        width: 2.5rem;
+        height: 1.375rem;
+        background: #e2e8f0;
+        border-radius: 999px;
+        transition: background 0.2s ease;
+        flex-shrink: 0;
+    }
+    .toggle-switch::after {
+        content: '';
+        position: absolute;
+        top: 0.125rem;
+        left: 0.125rem;
+        width: 1.125rem;
+        height: 1.125rem;
+        background: white;
+        border-radius: 50%;
+        transition: transform 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .dist-toggle.active .toggle-switch { background: #3b82f6; }
+    .dist-toggle.active .toggle-switch::after { transform: translateX(1.125rem); }
+
+    .email-chip-input {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+        padding: 0.5rem;
+        min-height: 2.75rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 0.75rem;
+        cursor: text;
+        transition: all 0.15s ease;
+    }
+    .email-chip-input:focus-within {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    .email-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background: #dbeafe;
+        border: 1px solid #93c5fd;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        color: #1e40af;
+    }
+    .email-chip button { color: #3b82f6; cursor: pointer; }
+    .email-chip-input input {
+        flex: 1;
+        min-width: 120px;
+        background: transparent;
+        border: none;
+        outline: none;
+        font-size: 0.875rem;
+        color: var(--color-text-primary);
+    }
+
+    .destination-card {
+        border: 1px solid var(--color-border);
+        border-radius: 0.875rem;
+        padding: 1rem;
+        background: var(--color-surface);
+        transition: all 0.15s ease;
+    }
+    .destination-card:hover { border-color: #93c5fd; }
+
+    .add-dest-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.875rem;
+        border: 2px dashed var(--color-border);
+        border-radius: 0.875rem;
+        color: var(--color-text-muted);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        background: transparent;
+    }
+    .add-dest-btn:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    /* -- Report Record Date -- */
+    .record-date-preview {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        color: #1e40af;
+        font-weight: 500;
+    }
+
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.7s linear infinite; }
+</style>
+
+@* -- Page header -- *@
+<div class="flex items-center gap-3 mb-6 fade-up fade-up-1">
+    <a href="/Dashboard/Reports"
+       class="w-9 h-9 flex items-center justify-center rounded-xl border border-border
+              text-text-secondary hover:text-text-primary hover:bg-surface transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M15 18l-6-6 6-6"/>
+        </svg>
+    </a>
+    <div>
+        <h1 class="text-text-primary text-2xl font-semibold">Add Report</h1>
+        <p class="text-text-muted text-sm mt-0.5">Configure a new automated database report.</p>
+    </div>
+</div>
+
+<div class="bg-surface-card border border-border rounded-2xl shadow-sm fade-up fade-up-2 max-w-3xl">
+    <div class="px-6 py-5 space-y-4">
+        <div id="pageAlert" class="hidden"></div>
+
+        @* -- Basic Info -- *@
+        <div>
+            <label class="text-xs font-medium text-text-secondary block mb-1">Report Name</label>
+            <input id="newReportName" type="text" placeholder="Monthly Sales Summary"
+                   class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                          text-text-primary placeholder-text-muted focus:outline-none
+                          focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors" />
+        </div>
+
+        @* -- Database Selection -- *@
+        <div>
+            <label class="text-xs font-medium text-text-secondary block mb-1">Select Database to Query</label>
+            <select id="newDbConfig"
+                    class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                           text-text-primary focus:outline-none focus:border-blue-400
+                           focus:ring-2 focus:ring-blue-100 transition-colors">
+                <option value="">Loading databases...</option>
+            </select>
+        </div>
+
+        @* -- Query -- *@
+        <div>
+            <label class="text-xs font-medium text-text-secondary block mb-1">Report Query</label>
+            <textarea id="newQuery" placeholder="SELECT * FROM sales WHERE date >= CURRENT_DATE - INTERVAL '30 days';"
+                      class="query-area w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                             text-text-primary placeholder-text-muted focus:outline-none
+                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors"></textarea>
+            <p class="text-xs text-text-muted mt-1">Write a valid SQL query for the selected database.</p>
+        </div>
+
+        @* -- Report Record Date -- *@
+        <div class="section-divider">
+            <div class="section-title">Report Record Date</div>
+            <p class="text-xs text-text-muted mb-2">Choose which date this report's data should be anchored to when it runs.</p>
+            <div class="flex flex-wrap gap-2 mb-3">
+                <button type="button" onclick="setRecordDateMode('current')" id="rdCurrent" class="freq-btn active">Current Day</button>
+                <button type="button" onclick="setRecordDateMode('after')" id="rdAfter" class="freq-btn">Current Day + N</button>
+                <button type="button" onclick="setRecordDateMode('before')" id="rdBefore" class="freq-btn">Current Day − N</button>
+            </div>
+
+            <div id="rdOffsetWrap" class="hidden">
+                <label class="text-xs font-medium text-text-secondary block mb-1">Number of Days</label>
+                <input id="newRecordDateOffset" type="number" min="1" max="365" value="1"
+                       oninput="updateRecordDatePreview()"
+                       class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                              text-text-primary focus:outline-none focus:border-blue-400
+                              focus:ring-2 focus:ring-blue-100 transition-colors" />
+            </div>
+
+            <div class="mt-3">
+                <span id="rdPreview" class="record-date-preview">Uses current day</span>
+            </div>
+        </div>
+
+        @* -- Output Configuration -- *@
+        <div class="section-divider">
+            <div class="section-title">Output Configuration</div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-1">Output File Name</label>
+                    <input id="newOutputFileName" type="text" placeholder="monthly_sales"
+                           class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                  text-text-primary placeholder-text-muted focus:outline-none
+                                  focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors" />
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-1">Output Format</label>
+                    <select id="newOutputFormat"
+                            class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                   text-text-primary focus:outline-none focus:border-blue-400
+                                   focus:ring-2 focus:ring-blue-100 transition-colors">
+                        <option value="csv">CSV</option>
+                        <option value="excel">Excel (.xlsx)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        @* -- Automation Configuration -- *@
+        <div class="section-divider">
+            <div class="section-title">Automation Configuration</div>
+
+            <div class="flex gap-2 mb-4">
+                <button type="button" id="tabSingle" onclick="setExecType('single')"
+                        class="freq-btn active flex-1">Single Run</button>
+                <button type="button" id="tabScheduled" onclick="setExecType('scheduled')"
+                        class="freq-btn flex-1">Scheduled Run</button>
+            </div>
+
+            <div id="singleRunSection">
+                <div class="space-y-3">
+                    <label class="flex items-center gap-3 radio-card" onclick="selectSingleTiming('immediately')">
+                        <input type="radio" name="singleTiming" value="immediately" class="accent-blue-600" checked />
+                        <div>
+                            <div class="text-sm font-medium text-text-primary">Run Immediately</div>
+                            <div class="text-xs text-text-muted">Execute the report as soon as it is created</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 radio-card" onclick="selectSingleTiming('scheduled')">
+                        <input type="radio" name="singleTiming" value="scheduled" class="accent-blue-600" />
+                        <div>
+                            <div class="text-sm font-medium text-text-primary">Run at Specified Date & Time</div>
+                            <div class="text-xs text-text-muted">Schedule a one-time execution</div>
+                        </div>
+                    </label>
+
+                    <div id="singleDateTimeWrap" class="hidden pl-10">
+                        <input id="newSingleRunDateTime" type="datetime-local"
+                               class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                      text-text-primary focus:outline-none focus:border-blue-400
+                                      focus:ring-2 focus:ring-blue-100 transition-colors" />
+                    </div>
+                </div>
+            </div>
+
+            <div id="scheduledRunSection" class="hidden space-y-4">
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-2">Execution Frequency</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="setFrequency('daily')" id="freqDaily" class="freq-btn">Daily</button>
+                        <button type="button" onclick="setFrequency('weekly')" id="freqWeekly" class="freq-btn">Weekly</button>
+                        <button type="button" onclick="setFrequency('monthly')" id="freqMonthly" class="freq-btn">Monthly</button>
+                        <button type="button" onclick="setFrequency('custom_dates')" id="freqCustomDates" class="freq-btn">Custom Dates</button>
+                        <button type="button" onclick="setFrequency('custom_recurring')" id="freqCustomRecurring" class="freq-btn">Custom Recurring</button>
+                    </div>
+                </div>
+
+                <div id="dailySection" class="hidden">
+                    <label class="text-xs font-medium text-text-secondary block mb-1">Time of Day</label>
+                    <input id="newDailyTime" type="time" value="09:00"
+                           class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                  text-text-primary focus:outline-none focus:border-blue-400
+                                  focus:ring-2 focus:ring-blue-100 transition-colors" />
+                </div>
+
+                <div id="weeklySection" class="hidden">
+                    <label class="text-xs font-medium text-text-secondary block mb-2">Days of Week</label>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" onclick="toggleDay(this, 'Monday')" class="day-btn">Mon</button>
+                        <button type="button" onclick="toggleDay(this, 'Tuesday')" class="day-btn">Tue</button>
+                        <button type="button" onclick="toggleDay(this, 'Wednesday')" class="day-btn">Wed</button>
+                        <button type="button" onclick="toggleDay(this, 'Thursday')" class="day-btn">Thu</button>
+                        <button type="button" onclick="toggleDay(this, 'Friday')" class="day-btn">Fri</button>
+                        <button type="button" onclick="toggleDay(this, 'Saturday')" class="day-btn">Sat</button>
+                        <button type="button" onclick="toggleDay(this, 'Sunday')" class="day-btn">Sun</button>
+                    </div>
+                    <div class="mt-3">
+                        <label class="text-xs font-medium text-text-secondary block mb-1">Time of Day</label>
+                        <input id="newWeeklyTime" type="time" value="09:00"
+                               class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                      text-text-primary focus:outline-none focus:border-blue-400
+                                      focus:ring-2 focus:ring-blue-100 transition-colors" />
+                    </div>
+                </div>
+
+                <div id="monthlySection" class="hidden">
+                    <label class="text-xs font-medium text-text-secondary block mb-1">Day of Month (1-31)</label>
+                    <input id="newMonthlyDay" type="number" min="1" max="31" value="1"
+                           class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                  text-text-primary focus:outline-none focus:border-blue-400
+                                  focus:ring-2 focus:ring-blue-100 transition-colors" />
+                    <div class="mt-3">
+                        <label class="text-xs font-medium text-text-secondary block mb-1">Time of Day</label>
+                        <input id="newMonthlyTime" type="time" value="09:00"
+                               class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                      text-text-primary focus:outline-none focus:border-blue-400
+                                      focus:ring-2 focus:ring-blue-100 transition-colors" />
+                    </div>
+                </div>
+
+                <div id="customDatesSection" class="hidden">
+                    <label class="text-xs font-medium text-text-secondary block mb-1">Pick Dates from Calendar</label>
+                    <input id="newCustomDatePicker" type="date"
+                           class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                  text-text-primary focus:outline-none focus:border-blue-400
+                                  focus:ring-2 focus:ring-blue-100 transition-colors mb-2"
+                           onchange="addCustomDate(this.value)" />
+                    <div id="customDatesChips" class="flex flex-wrap gap-1.5 min-h-[2rem]">
+                        <span class="text-xs text-text-muted italic">No dates selected</span>
+                    </div>
+                </div>
+
+                <div id="customRecurringSection" class="hidden">
+                    <label class="text-xs font-medium text-text-secondary block mb-2">Custom Schedule (Date & Time)</label>
+                    <div id="customRecurringList" class="space-y-2">
+                        <div class="custom-recurring-row">
+                            <input type="date" class="custom-rec-date px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" />
+                            <input type="time" class="custom-rec-time px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" value="09:00" />
+                            <button type="button" onclick="removeRecurringRow(this)"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M18 6 6 18M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" onclick="addRecurringRow()"
+                            class="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        Add another date & time
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @* -- Report Distribution -- *@
+        <div class="section-divider">
+            <div class="section-title">Report Distribution</div>
+
+            <div class="mb-4">
+                <label class="text-xs font-medium text-text-secondary block mb-1">Max Rows Per Sheet</label>
+                <input id="newMaxRowsPerSheet" type="number" min="1" max="1048576" placeholder="1048576" value="1048576"
+                       class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                              text-text-primary placeholder-text-muted focus:outline-none
+                              focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors" />
+                <p class="text-xs text-text-muted mt-1">Excel maximum: 1,048,576. Applies to all Excel outputs. Leave empty for no limit.</p>
+            </div>
+
+            <div class="dist-toggle mb-3" onclick="toggleEmailDist(this)" id="emailDistToggle">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-text-primary">Email Distribution</div>
+                        <div class="text-xs text-text-muted">Send generated reports via email</div>
+                    </div>
+                </div>
+                <div class="toggle-switch"></div>
+            </div>
+            <input type="hidden" id="newEnableEmailDist" value="false" />
+
+            <div id="emailConfigSection" class="hidden space-y-3 pl-2">
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-1">To Recipients</label>
+                    <div class="email-chip-input" onclick="document.getElementById('newToInput').focus()">
+                        <div id="newToChips" class="flex flex-wrap gap-1"></div>
+                        <input type="text" id="newToInput" placeholder="Type email and press Enter..."
+                               class="bg-transparent border-none outline-none text-sm flex-1 min-w-[150px]"
+                               onkeydown="handleEmailChip(event, 'newToInput', 'newToChips', 'newToRecipients')" />
+                    </div>
+                    <input type="hidden" id="newToRecipients" />
+                </div>
+
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-1">CC Recipients</label>
+                    <div class="email-chip-input" onclick="document.getElementById('newCcInput').focus()">
+                        <div id="newCcChips" class="flex flex-wrap gap-1"></div>
+                        <input type="text" id="newCcInput" placeholder="Type email and press Enter..."
+                               class="bg-transparent border-none outline-none text-sm flex-1 min-w-[150px]"
+                               onkeydown="handleEmailChip(event, 'newCcInput', 'newCcChips', 'newCcRecipients')" />
+                    </div>
+                    <input type="hidden" id="newCcRecipients" />
+                </div>
+
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-1">BCC Recipients</label>
+                    <div class="email-chip-input" onclick="document.getElementById('newBccInput').focus()">
+                        <div id="newBccChips" class="flex flex-wrap gap-1"></div>
+                        <input type="text" id="newBccInput" placeholder="Type email and press Enter..."
+                               class="bg-transparent border-none outline-none text-sm flex-1 min-w-[150px]"
+                               onkeydown="handleEmailChip(event, 'newBccInput', 'newBccChips', 'newBccRecipients')" />
+                    </div>
+                    <input type="hidden" id="newBccRecipients" />
+                </div>
+
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-1">Email Subject</label>
+                    <input id="newEmailSubject" type="text" placeholder="Monthly Sales Report - {{date}}"
+                           class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                  text-text-primary placeholder-text-muted focus:outline-none
+                                  focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors" />
+                    <p class="text-xs text-text-muted mt-1">Use {{date}}, {{reportName}} as placeholders</p>
+                </div>
+
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-1">Email Body Template</label>
+                    <textarea id="newEmailBody" rows="4" placeholder="Please find the attached report..."
+                              class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                     text-text-primary placeholder-text-muted focus:outline-none
+                                     focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors resize-y"></textarea>
+                </div>
+            </div>
+
+            <div class="dist-toggle mb-3 mt-4" onclick="toggleFileSave(this)" id="fileSaveToggle">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-text-primary">Save to Directory</div>
+                        <div class="text-xs text-text-muted">Save reports to local or network path</div>
+                    </div>
+                </div>
+                <div class="toggle-switch"></div>
+            </div>
+            <input type="hidden" id="newEnableFileSave" value="false" />
+
+            <div id="fileSaveConfigSection" class="hidden space-y-3 pl-2">
+                <div>
+                    <label class="text-xs font-medium text-text-secondary block mb-1">Save Path</label>
+                    <input id="newFileSavePath" type="text" placeholder="\\server\shared\reports or C:\Reports"
+                           class="w-full px-3 py-2.5 bg-surface border border-border rounded-xl text-sm
+                                  text-text-primary placeholder-text-muted focus:outline-none
+                                  focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors" />
+                    <p class="text-xs text-text-muted mt-1">Local directory or UNC network path</p>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <label class="text-xs font-medium text-text-secondary block mb-2">Additional Delivery Destinations</label>
+                <div id="newDestinationsList" class="space-y-2"></div>
+                <button type="button" onclick="addDestination('new')" class="add-dest-btn mt-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Add Delivery Destination
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @* Footer *@
+    <div class="px-6 py-4 border-t border-border flex justify-end gap-3 rounded-b-2xl">
+        <a href="/Dashboard/Reports"
+           class="px-4 py-2 text-sm text-text-secondary hover:text-text-primary
+                  border border-border rounded-xl transition-colors">
+            Cancel
+        </a>
+        <button id="saveReportBtn" onclick="saveReport()"
+                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white
+                       text-sm font-medium rounded-xl transition-colors flex items-center gap-2">
+            <span id="saveBtnText">Create Report</span>
+            <svg id="saveBtnSpinner" class="hidden w-4 h-4 spinner" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let currentExecType = 'single';
+    let currentFrequency = '';
+    let selectedDays = [];
+    let customDates = [];
+    let recordDateMode = 'current'; // 'current' | 'after' | 'before'
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function formatDateInput(date) {
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    async function loadDatabases() {
+        try {
+            const res = await fetch('/Dashboard/Databases/GetAll');
+            if (!res.ok) throw new Error('Failed to fetch databases');
+            const dbs = await res.json();
+            const opts = dbs.map(d => `<option value="${d.id}">${escHtml(d.databaseName)} (${escHtml(d.databaseType)}) — ${escHtml(d.host)}</option>`).join('');
+            document.getElementById('newDbConfig').innerHTML = `<option value="">Select a database...</option>` + opts;
+        } catch {
+            document.getElementById('newDbConfig').innerHTML = `<option value="">Failed to load databases</option>`;
+        }
+    }
+
+    // ── Report Record Date ──────────────────────────────────────────────
+    function setRecordDateMode(mode) {
+        recordDateMode = mode;
+        document.getElementById('rdCurrent').classList.toggle('active', mode === 'current');
+        document.getElementById('rdAfter').classList.toggle('active', mode === 'after');
+        document.getElementById('rdBefore').classList.toggle('active', mode === 'before');
+        document.getElementById('rdOffsetWrap').classList.toggle('hidden', mode === 'current');
+        updateRecordDatePreview();
+    }
+
+    function updateRecordDatePreview() {
+        const preview = document.getElementById('rdPreview');
+        const offsetInput = document.getElementById('newRecordDateOffset');
+        let n = parseInt(offsetInput.value);
+        if (isNaN(n) || n < 1) n = 1;
+
+        if (recordDateMode === 'current') {
+            preview.textContent = 'Uses current day';
+        } else if (recordDateMode === 'after') {
+            preview.textContent = `Uses current day + ${n} day${n === 1 ? '' : 's'}`;
+        } else {
+            preview.textContent = `Uses current day − ${n} day${n === 1 ? '' : 's'}`;
+        }
+    }
+
+    function getRecordDateOffsetDays() {
+        if (recordDateMode === 'current') return 0;
+        let n = parseInt(document.getElementById('newRecordDateOffset').value);
+        if (isNaN(n) || n < 1) n = 1;
+        return recordDateMode === 'after' ? n : -n;
+    }
+
+    // ── Execution type / frequency toggles ──────────────────────────────
+    function setExecType(type) {
+        currentExecType = type;
+        document.getElementById('tabSingle').classList.toggle('active', type === 'single');
+        document.getElementById('tabScheduled').classList.toggle('active', type === 'scheduled');
+        document.getElementById('singleRunSection').classList.toggle('hidden', type !== 'single');
+        document.getElementById('scheduledRunSection').classList.toggle('hidden', type !== 'scheduled');
+    }
+
+    function selectSingleTiming(timing) {
+        document.querySelectorAll('input[name="singleTiming"]').forEach(r => r.checked = r.value === timing);
+        document.getElementById('singleDateTimeWrap').classList.toggle('hidden', timing !== 'scheduled');
+    }
+
+    function setFrequency(freq) {
+        currentFrequency = freq;
+        const freqMap = {
+            'daily': 'freqDaily', 'weekly': 'freqWeekly', 'monthly': 'freqMonthly',
+            'custom_dates': 'freqCustomDates', 'custom_recurring': 'freqCustomRecurring'
+        };
+        Object.entries(freqMap).forEach(([f, id]) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('active', f === freq);
+        });
+        document.getElementById('dailySection').classList.toggle('hidden', freq !== 'daily');
+        document.getElementById('weeklySection').classList.toggle('hidden', freq !== 'weekly');
+        document.getElementById('monthlySection').classList.toggle('hidden', freq !== 'monthly');
+        document.getElementById('customDatesSection').classList.toggle('hidden', freq !== 'custom_dates');
+        document.getElementById('customRecurringSection').classList.toggle('hidden', freq !== 'custom_recurring');
+    }
+
+    function toggleDay(btn, day) {
+        if (selectedDays.includes(day)) selectedDays = selectedDays.filter(d => d !== day);
+        else selectedDays.push(day);
+        updateDayButtons();
+    }
+    function updateDayButtons() {
+        const dayMap = { 'Mon':'Monday','Tue':'Tuesday','Wed':'Wednesday','Thu':'Thursday','Fri':'Friday','Sat':'Saturday','Sun':'Sunday' };
+        document.querySelectorAll('#weeklySection .day-btn').forEach(btn => {
+            btn.classList.toggle('selected', selectedDays.includes(dayMap[btn.textContent.trim()]));
+        });
+    }
+
+    function addCustomDate(dateStr) {
+        if (!dateStr) return;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return;
+        if (!customDates.some(cd => formatDateInput(cd) === dateStr)) customDates.push(d);
+        updateCustomDatesChips();
+        document.getElementById('newCustomDatePicker').value = '';
+    }
+    function removeCustomDate(dateStr) {
+        customDates = customDates.filter(d => formatDateInput(d) !== dateStr);
+        updateCustomDatesChips();
+    }
+    function updateCustomDatesChips() {
+        const container = document.getElementById('customDatesChips');
+        if (customDates.length === 0) {
+            container.innerHTML = '<span class="text-xs text-text-muted italic">No dates selected</span>';
+            return;
+        }
+        container.innerHTML = customDates.map(d => `
+            <span class="custom-date-chip">
+                ${d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})}
+                <button onclick="removeCustomDate('${formatDateInput(d)}')" class="ml-1 text-blue-400 hover:text-blue-600" type="button">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+            </span>`).join('');
+    }
+
+    function addRecurringRow() {
+        const list = document.getElementById('customRecurringList');
+        const row = document.createElement('div');
+        row.className = 'custom-recurring-row';
+        row.innerHTML = `
+            <input type="date" class="custom-rec-date px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" />
+            <input type="time" class="custom-rec-time px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary" value="09:00" />
+            <button type="button" onclick="removeRecurringRow(this)"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+            </button>`;
+        list.appendChild(row);
+    }
+    function removeRecurringRow(btn) {
+        const rows = document.querySelectorAll('#customRecurringList .custom-recurring-row');
+        if (rows.length > 1) btn.closest('.custom-recurring-row').remove();
+    }
+
+    // ── Distribution ─────────────────────────────────────────────────────
+    function toggleEmailDist(el) {
+        el.classList.toggle('active');
+        const enabled = el.classList.contains('active');
+        document.getElementById('newEnableEmailDist').value = enabled.toString();
+        document.getElementById('emailConfigSection').classList.toggle('hidden', !enabled);
+    }
+    function toggleFileSave(el) {
+        el.classList.toggle('active');
+        const enabled = el.classList.contains('active');
+        document.getElementById('newEnableFileSave').value = enabled.toString();
+        document.getElementById('fileSaveConfigSection').classList.toggle('hidden', !enabled);
+    }
+
+    function handleEmailChip(event, inputId, chipsId, hiddenId) {
+        if (event.key === 'Enter' || event.key === ',') {
+            event.preventDefault();
+            const input = document.getElementById(inputId);
+            const email = input.value.trim().replace(/,$/, '');
+            if (email && isValidEmail(email)) {
+                addEmailChip(email, chipsId, hiddenId);
+                input.value = '';
+            }
+        } else if (event.key === 'Backspace' && !event.target.value) {
+            const chips = document.getElementById(chipsId);
+            const lastChip = chips.lastElementChild;
+            if (lastChip) lastChip.remove();
+            updateHiddenEmails(chipsId, hiddenId);
+        }
+    }
+   function isValidEmail(email) { return /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/.test(email); }
+    function addEmailChip(email, chipsId, hiddenId) {
+        const chips = document.getElementById(chipsId);
+        const existing = Array.from(chips.children).map(c => c.dataset.email);
+        if (existing.includes(email)) return;
+        const chip = document.createElement('span');
+        chip.className = 'email-chip';
+        chip.dataset.email = email;
+        chip.innerHTML = `${escHtml(email)} <button onclick="removeEmailChip(this, '${chipsId}', '${hiddenId}')" type="button">&times;</button>`;
+        chips.appendChild(chip);
+        updateHiddenEmails(chipsId, hiddenId);
+    }
+    function removeEmailChip(btn, chipsId, hiddenId) {
+        btn.parentElement.remove();
+        updateHiddenEmails(chipsId, hiddenId);
+    }
+    function updateHiddenEmails(chipsId, hiddenId) {
+        const chips = document.getElementById(chipsId);
+        const emails = Array.from(chips.children).map(c => c.dataset.email);
+        document.getElementById(hiddenId).value = emails.join(',');
+    }
+
+    function addDestination(prefix) {
+        const list = document.getElementById(`${prefix}DestinationsList`);
+        const destId = `dest-${prefix}-${Date.now()}`;
+        const card = document.createElement('div');
+        card.className = 'destination-card';
+        card.id = destId;
+        card.innerHTML = `
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <select onchange="toggleDestType('${destId}', this.value)"
+                            class="text-xs font-semibold px-2 py-1 rounded-lg border border-border bg-surface">
+                        <option value="email">Email</option>
+                        <option value="file">File Save</option>
+                    </select>
+                </div>
+                <button onclick="removeDestination('${destId}')" type="button"
+                        class="w-6 h-6 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="dest-email-fields space-y-2">
+                <input type="text" placeholder="To: email1@company.com, email2@company.com"
+                       class="dest-to w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-blue-400" />
+                <input type="text" placeholder="CC: (optional)"
+                       class="dest-cc w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-blue-400" />
+                <input type="text" placeholder="BCC: (optional)"
+                       class="dest-bcc w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-blue-400" />
+                <input type="text" placeholder="Subject"
+                       class="dest-subject w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-blue-400" />
+                <textarea placeholder="Email body..." rows="2"
+                          class="dest-body w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-blue-400 resize-y"></textarea>
+            </div>
+            <div class="dest-file-fields hidden space-y-2">
+                <input type="text" placeholder="\\\\server\\path or C:\\Reports"
+                       class="dest-path w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-blue-400" />
+            </div>`;
+        list.appendChild(card);
+    }
+    function toggleDestType(destId, type) {
+        const card = document.getElementById(destId);
+        card.querySelector('.dest-email-fields').classList.toggle('hidden', type !== 'email');
+        card.querySelector('.dest-file-fields').classList.toggle('hidden', type !== 'file');
+    }
+    function removeDestination(destId) { document.getElementById(destId)?.remove(); }
+
+    function collectDestinations(prefix) {
+        const destinations = [];
+        document.querySelectorAll(`#${prefix}DestinationsList .destination-card`).forEach(card => {
+            const type = card.querySelector('select').value;
+            const dest = { destinationType: type, isActive: true };
+            if (type === 'email') {
+                dest.emailTo = card.querySelector('.dest-to')?.value || null;
+                dest.emailCc = card.querySelector('.dest-cc')?.value || null;
+                dest.emailBcc = card.querySelector('.dest-bcc')?.value || null;
+                dest.emailSubject = card.querySelector('.dest-subject')?.value || null;
+                dest.emailBody = card.querySelector('.dest-body')?.value || null;
+            } else {
+                dest.filePath = card.querySelector('.dest-path')?.value || null;
+            }
+            destinations.push(dest);
+        });
+        return destinations;
+    }
+
+    // ── Save ─────────────────────────────────────────────────────────────
+    async function saveReport() {
+        const name = document.getElementById('newReportName').value.trim();
+        const dbConfigId = parseInt(document.getElementById('newDbConfig').value);
+        const query = document.getElementById('newQuery').value.trim();
+        const outputFileName = document.getElementById('newOutputFileName').value.trim();
+        const outputFormat = document.getElementById('newOutputFormat').value;
+
+        if (!name) { showPageAlert('Report name is required.', 'error'); return; }
+        if (!dbConfigId) { showPageAlert('Please select a database.', 'error'); return; }
+        if (!query) { showPageAlert('Report query is required.', 'error'); return; }
+        if (!outputFileName) { showPageAlert('Output file name is required.', 'error'); return; }
+
+        const payload = {
+            name, dbConnectionConfigId: dbConfigId, query, outputFileName, outputFormat,
+            executionType: currentExecType,
+            maxRowsPerSheet: parseInt(document.getElementById('newMaxRowsPerSheet').value) || null,
+            reportRecordDateOffsetDays: getRecordDateOffsetDays()
+        };
+
+        if (currentExecType === 'single') {
+            const timing = document.querySelector('input[name="singleTiming"]:checked')?.value || 'immediately';
+            payload.singleRunTiming = timing;
+            if (timing === 'scheduled') {
+                const dt = document.getElementById('newSingleRunDateTime').value;
+                if (!dt) { showPageAlert('Please specify a date and time.', 'error'); return; }
+                payload.singleRunDateTime = dt;
+            }
+        } else {
+            payload.scheduleFrequency = currentFrequency;
+            if (!currentFrequency) { showPageAlert('Please select a schedule frequency.', 'error'); return; }
+
+            if (currentFrequency === 'daily') {
+                payload.scheduleTime = document.getElementById('newDailyTime').value;
+            }
+            if (currentFrequency === 'weekly') {
+                if (selectedDays.length === 0) { showPageAlert('Please select at least one day.', 'error'); return; }
+                payload.scheduleDaysOfWeek = selectedDays;
+                payload.scheduleTime = document.getElementById('newWeeklyTime').value;
+            }
+            if (currentFrequency === 'monthly') {
+                payload.scheduleDayOfMonth = parseInt(document.getElementById('newMonthlyDay').value);
+                payload.scheduleTime = document.getElementById('newMonthlyTime').value;
+            }
+            if (currentFrequency === 'custom_dates') {
+                if (customDates.length === 0) { showPageAlert('Please select at least one date.', 'error'); return; }
+                payload.scheduleCustomDates = customDates.map(d => formatDateInput(d));
+            }
+            if (currentFrequency === 'custom_recurring') {
+                const recs = [];
+                document.querySelectorAll('#customRecurringList .custom-recurring-row').forEach(row => {
+                    const date = row.querySelector('.custom-rec-date').value;
+                    const time = row.querySelector('.custom-rec-time').value;
+                    if (date && time) recs.push({ date, time });
+                });
+                if (recs.length === 0) { showPageAlert('Please add at least one date and time.', 'error'); return; }
+                payload.scheduleCustomRecurring = recs;
+            }
+        }
+
+        payload.enableEmailDistribution = document.getElementById('newEnableEmailDist').value === 'true';
+        if (payload.enableEmailDistribution) {
+            payload.emailToRecipients = document.getElementById('newToRecipients').value || null;
+            payload.emailCcRecipients = document.getElementById('newCcRecipients').value || null;
+            payload.emailBccRecipients = document.getElementById('newBccRecipients').value || null;
+            payload.emailSubject = document.getElementById('newEmailSubject').value || null;
+            payload.emailBodyTemplate = document.getElementById('newEmailBody').value || null;
+        }
+        payload.enableFileSave = document.getElementById('newEnableFileSave').value === 'true';
+        if (payload.enableFileSave) {
+            payload.fileSavePath = document.getElementById('newFileSavePath').value || null;
+        }
+        payload.distributionDestinations = collectDestinations('new');
+
+        const btn = document.getElementById('saveReportBtn');
+        const spinner = document.getElementById('saveBtnSpinner');
+        const btnText = document.getElementById('saveBtnText');
+        btn.disabled = true;
+        spinner.classList.remove('hidden');
+        btnText.textContent = 'Creating...';
+
+        try {
+            const res = await fetch('/Dashboard/Reports/Create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to create report');
+
+            // Report created — go back to the list.
+            window.location.href = '/Dashboard/Reports';
+        } catch (err) {
+            showPageAlert(err.message || 'Failed to create report. Please try again.', 'error');
+            btn.disabled = false;
+            spinner.classList.add('hidden');
+            btnText.textContent = 'Create Report';
+        }
+    }
+
+    function showPageAlert(message, type) {
+        const el = document.getElementById('pageAlert');
+        el.className = `mb-1 px-3 py-2 rounded-xl text-xs border
+            ${type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`;
+        el.textContent = message;
+        el.classList.remove('hidden');
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    loadDatabases();
+</script>
+}

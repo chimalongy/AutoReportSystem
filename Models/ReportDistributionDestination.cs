@@ -57,4 +57,22 @@ namespace ARS.Models
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
+
+
+
+
+
+
+    public class DistributionDestinationDto
+    {
+        public int Id { get; set; }
+        public string DestinationType { get; set; } = string.Empty;
+        public string? EmailTo { get; set; }
+        public string? EmailCc { get; set; }
+        public string? EmailBcc { get; set; }
+        public string? EmailSubject { get; set; }
+        public string? EmailBody { get; set; }
+        public string? FilePath { get; set; }
+        public bool IsActive { get; set; }
+    }
 }

@@ -7,34 +7,28 @@ namespace ARS.Classess.Utils
     public static class AuditLogger
     {
         public static async Task LogAsync(
-            AppDbContext db,
-            string eventName,
-            int? userId = null,
-            string? ipAddress = null,
-            string? pageUrl = null)
+      AppDbContext db,
+      string eventName,       // keep for backward compat
+      int userId,
+      string? ipAddress,
+      string? pageUrl,
+      string? userEmail = null,
+      string? action = null,
+      string? resourceName = null)
         {
-            try
+            var log = new AuditLog
             {
-                // Get schema from EF Core model metadata (reads from AppDbContext's OnModelCreating)
-                var schema = db.Model
-                    .FindEntityType(typeof(AuditLog))!
-                    .GetSchema() ?? "public";
-
-                await db.Database.ExecuteSqlRawAsync(
-                    $@"
-                    INSERT INTO {schema}.audit_logs (event, eventdate, ipaddress, pageurl, userid)
-                    VALUES ({{0}}, {{1}}, {{2}}, {{3}}, {{4}})",
-                    eventName,
-                    DateTime.UtcNow,
-                    ipAddress ?? (object)DBNull.Value,
-                    pageUrl ?? (object)DBNull.Value,
-                    userId.HasValue ? userId.Value.ToString() : (object)DBNull.Value
-                );
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuditLogger] Failed: {ex.Message}");
-            }
+                Event = eventName,
+                EventDate = DateTime.UtcNow,
+                IpAddress = ipAddress,
+                PageUrl = pageUrl,
+                UserId = userId.ToString(),
+                UserEmail = userEmail,
+                Action = action,
+                ResourceName = resourceName
+            };
+            db.AuditLogs.Add(log);
+            await db.SaveChangesAsync();
         }
     }
 }

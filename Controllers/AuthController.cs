@@ -55,8 +55,6 @@ namespace ARS.Controllers
 
                 if (string.Equals(user.Role, "Super Admin", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Super admin password is stored as a TripleDES-encrypted string.
-                    // Decrypt it and compare against the known super-admin sentinel value.
                     try
                     {
                         string decrypted = Cryptor.Decrypt(user.Password, useHashing: true);
@@ -64,13 +62,11 @@ namespace ARS.Controllers
                     }
                     catch
                     {
-                        // Decryption failure — treat as wrong password
                         passwordValid = false;
                     }
                 }
                 else
                 {
-                    // Admin / Support — password is BCrypt-hashed
                     passwordValid = BCrypt.Net.BCrypt.Verify(password, user.Password);
                 }
 
@@ -115,13 +111,16 @@ namespace ARS.Controllers
 
                 return RedirectToAction("Index", "Dashboard");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                ModelState.AddModelError("", "Login failed. Please try again.");
+                // ⚠️ TEMP DEBUG — REMOVE BEFORE FINAL DEPLOY ⚠️
+                // Shows the full exception message + stack trace on the login page.
+                // This is a security risk in production — remove this block once debugging is done.
+                var inner = ex.InnerException?.Message ?? "none";
+                ModelState.AddModelError("", $"DEBUG ERROR: {ex.Message}\n\nINNER: {inner}\n{ex.StackTrace}");
                 return View();
             }
         }
-
         // ── GET /Auth/UpdatePassword ──────────────────────────────────────────
         [HttpGet]
         public async Task<IActionResult> UpdatePassword()

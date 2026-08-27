@@ -167,6 +167,23 @@
         <div id="report-list-body">
             @* Populated by JS *@
         </div>
+
+        @* ── Pagination controls ── *@
+        <div class="flex items-center justify-between mt-4 pt-3 border-t border-border">
+            <span id="dashPageInfo" class="text-xs text-text-muted">Page 1</span>
+            <div class="flex items-center gap-2">
+                <button id="dashPrevBtn"
+                        class="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-text-secondary 
+                               hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    Previous
+                </button>
+                <button id="dashNextBtn"
+                        class="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white 
+                               hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    Next
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -234,10 +251,6 @@
     (function () {
 
         // ── Stat card definitions ───────────────────────────────────────────
-        // todayKey  → the "today" count field from the API
-        // totalKey  → the "overall" count field from the API
-        // For the Total Reports card there is no "today" concept, so todayKey
-        // is null and we show only the single overall number.
         const STAT_CARDS = [
             {
                 todayKey:  null,
@@ -300,6 +313,13 @@
         let allReports   = [];
         let activeFilter = 'all';
 
+        // Pagination state
+        let currentPage      = 1;
+        const pageSize       = 25;
+        let totalReportsCount = 0;
+        let totalPages       = 1;
+        let isLoading        = false;
+
         function fmtDate(dt) {
             if (!dt) return '—';
             return new Date(dt).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -356,6 +376,7 @@
             const body = document.getElementById('report-list-body');
             if (!filtered.length) {
                 body.innerHTML = '<p class="text-center text-text-muted text-sm py-6">No reports in this category.</p>';
+                updatePaginationControls();
                 return;
             }
 
@@ -377,43 +398,86 @@
                     <span class="report-row-meta">${meta}</span>
                 </div>`;
             }).join('');
+
+            updatePaginationControls();
+        }
+
+        function updatePaginationControls() {
+            const pageInfo = document.getElementById('dashPageInfo');
+            const prevBtn  = document.getElementById('dashPrevBtn');
+            const nextBtn  = document.getElementById('dashNextBtn');
+
+            const start = totalReportsCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+            const end   = Math.min(currentPage * pageSize, totalReportsCount);
+
+            pageInfo.textContent = totalReportsCount === 0
+                ? 'Page 0 of 0'
+                : `Page ${currentPage} of ${totalPages} (${start}-${end} of ${totalReportsCount})`;
+
+            prevBtn.disabled = currentPage <= 1 || isLoading;
+            nextBtn.disabled = currentPage >= totalPages || isLoading;
         }
 
         // ── Public filter setter ────────────────────────────────────────────
         window._rsSetFilter = function (key) {
             activeFilter = key;
-            renderList();
+            currentPage  = 1;
+            load(1, false);
+        };
+
+        window.loadDashNextPage = function () {
+            if (currentPage < totalPages) load(currentPage + 1, true);
+        };
+
+        window.loadDashPrevPage = function () {
+            if (currentPage > 1) load(currentPage - 1, true);
         };
 
         // ── Load both endpoints in parallel ─────────────────────────────────
-        async function load(showSpinner) {
+        async function load(page, showSpinner) {
+            if (isLoading) return;
+            isLoading = true;
+            currentPage = page;
+
             if (showSpinner) {
                 document.getElementById('report-stat-grid').innerHTML =
                     '<div class="col-span-2 md:col-span-4 text-center text-sm text-text-muted py-4"><span class="spinner"></span>&nbsp; Loading…</div>';
                 document.getElementById('report-list-body').innerHTML = '';
             }
+
             try {
                 const [statsRes, reportsRes] = await Promise.all([
                     fetch('/Dashboard/Reports/GetTodayStats', { credentials: 'include' }),
-                    fetch('/Dashboard/Reports/GetAll',        { credentials: 'include' })
+                    fetch(`/Dashboard/Reports/GetAll?page=${page}&pageSize=${pageSize}`, { credentials: 'include' })
                 ]);
 
                 if (!statsRes.ok)   throw new Error('Stats HTTP '   + statsRes.status);
                 if (!reportsRes.ok) throw new Error('Reports HTTP ' + reportsRes.status);
 
-                const stats = await statsRes.json();
-                allReports  = await reportsRes.json();
+                const stats       = await statsRes.json();
+                const reportsData = await reportsRes.json();
+
+                allReports        = reportsData.data || [];
+                totalReportsCount = reportsData.total || 0;
+                totalPages        = reportsData.totalPages || 1;
 
                 renderStats(stats);
                 renderList();
             } catch (e) {
                 document.getElementById('report-stat-grid').innerHTML =
                     `<div class="col-span-2 md:col-span-4 text-center text-sm text-red-500 py-4">Could not load reports: ${e.message}</div>`;
+            } finally {
+                isLoading = false;
+                updatePaginationControls();
             }
         }
 
-        window.refreshReports = function () { load(true); };
-        load(true);
+        // Wire up pagination buttons
+        document.getElementById('dashPrevBtn').addEventListener('click', window.loadDashPrevPage);
+        document.getElementById('dashNextBtn').addEventListener('click', window.loadDashNextPage);
+
+        window.refreshReports = function () { load(currentPage, true); };
+        load(1, true);
     })();
     </script>
 }

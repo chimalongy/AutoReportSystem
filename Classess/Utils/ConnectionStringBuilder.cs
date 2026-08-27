@@ -27,7 +27,7 @@ namespace ARS.Classess.Utils
             return databaseType.ToLowerInvariant() switch
             {
                 "postgresql" or "postgres" =>
-                    $"Host={host};Port={port};Database={databaseName};Username={username};Password={password};SSL Mode=Prefer;Trust Server Certificate=true;",
+                    $"Host={host};Port={port};Database={databaseName};Username={username};Password={password};Ssl Mode=Disable;Timeout=60;Command Timeout=120;Server Compatibility Mode=NoTypeLoading;Include Error Detail=true",
 
                 "oracle" =>
                     $"User Id={username};Password={password};Data Source={host}:{port}/{databaseName};",

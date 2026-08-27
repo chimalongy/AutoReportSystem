@@ -22,5 +22,14 @@ namespace ARS.Models
 
         [Column("userid")]
         public string? UserId { get; set; }
+
+        [Column("useremail")]
+        public string? UserEmail { get; set; }
+
+        [Column("action")]
+        public string? Action { get; set; }
+
+        [Column("resourcename")]
+        public string? ResourceName { get; set; }
     }
 }

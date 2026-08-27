@@ -7,8 +7,12 @@
       "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:classess\\utils\\reportfetcher.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\autoreportsystem\\classess\\utils\\emailsender.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:classess\\utils\\emailsender.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\autoreportsystem\\classess\\utils\\globalvariables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:classess\\utils\\globalvariables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|c:\\users\\dell\\source\\repos\\autoreportsystem\\controllers\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5EF9A8D3-AC7F-C399-204D-89C40C4911E6}|ARS.csproj|solutionrelative:controllers\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,11 +22,24 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "GlobalVariables.cs",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\GlobalVariables.cs",
+              "RelativeDocumentMoniker": "Classess\\Utils\\GlobalVariables.cs",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\GlobalVariables.cs",
+              "RelativeToolTip": "Classess\\Utils\\GlobalVariables.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAqwBAAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-27T08:55:30.994Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -32,22 +49,22 @@
               "RelativeDocumentMoniker": "Classess\\Utils\\ReportFetcher.cs",
               "ToolTip": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\ReportFetcher.cs",
               "RelativeToolTip": "Classess\\Utils\\ReportFetcher.cs",
-              "ViewState": "AgIAAJEBAAAAAAAAAAD4v6ABAAASAAAAAAAAAA==",
+              "ViewState": "AgIAAE8AAAAAAAAAAAASwFsAAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-06-28T05:16:06.276Z",
+              "WhenOpened": "2026-08-27T08:50:52.559Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "EmailSender.cs",
-              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\EmailSender.cs",
-              "RelativeDocumentMoniker": "Classess\\Utils\\EmailSender.cs",
-              "ToolTip": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Classess\\Utils\\EmailSender.cs",
-              "RelativeToolTip": "Classess\\Utils\\EmailSender.cs",
-              "ViewState": "AgIAAD4AAAAAAAAAAAAwwFIAAABCAAAAAAAAAA==",
+              "DocumentIndex": 2,
+              "Title": "DashboardController.cs",
+              "DocumentMoniker": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Controllers\\DashboardController.cs",
+              "RelativeDocumentMoniker": "Controllers\\DashboardController.cs",
+              "ToolTip": "C:\\Users\\dell\\source\\repos\\AutoReportSystem\\Controllers\\DashboardController.cs",
+              "RelativeToolTip": "Controllers\\DashboardController.cs",
+              "ViewState": "AgIAAHAEAAAAAAAAAAAhwC4EAAAoAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-06-28T05:11:33.697Z",
+              "WhenOpened": "2026-08-27T08:49:06.715Z",
               "EditorCaption": ""
             }
           ]

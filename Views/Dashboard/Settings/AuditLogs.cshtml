@@ -23,6 +23,10 @@
         from { opacity: 0; }
         to   { opacity: 1; }
     }
+    @@keyframes slideUp {
+        from { opacity: 0; transform: translateY(32px) scale(0.98); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
     .fade-up { opacity: 0; animation: fadeUp 0.45s ease forwards; }
     .fade-up-1 { animation-delay: 0.05s; }
     .fade-up-2 { animation-delay: 0.15s; }
@@ -54,6 +58,20 @@
         border-color: var(--color-brand-500, #3b82f6);
     }
     .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    #detailModal {
+        display: none;
+        animation: fadeIn 0.15s ease forwards;
+    }
+    #detailModal.open { display: flex; }
+    #detailBox {
+        animation: slideUp 0.22s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+    }
+
+    .detail-row { display: grid; grid-template-columns: 140px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { font-size: 0.75rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.02em; padding-top: 2px; }
+    .detail-value { font-size: 0.8125rem; color: var(--color-text-primary); word-break: break-word; }
 </style>
 
 @* ── Page header ── *@
@@ -87,22 +105,22 @@
                      fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                 </svg>
-                <input id="searchInput" type="text" placeholder="Search event, user, IP, URL..."
-                       oninput="applyFilters()"
+                <input id="searchInput" type="text" placeholder="Search user, action, resource, IP..."
+                       oninput="onSearchInput()"
                        class="w-full pl-8 pr-4 py-2 bg-surface border border-border rounded-xl text-sm
                               text-text-primary placeholder-text-muted focus:outline-none
                               focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors" />
             </div>
         </div>
 
-        @* Event filter *@
-        <div class="min-w-[160px]">
-            <label class="block text-xs font-medium text-text-muted mb-1.5">Event</label>
-            <select id="eventFilter" onchange="applyFilters()"
+        @* Action filter *@
+        <div class="min-w-[180px]">
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Action</label>
+            <select id="actionFilter" onchange="applyFilters()"
                     class="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm
                            text-text-primary focus:outline-none focus:border-blue-400
                            focus:ring-2 focus:ring-blue-100 transition-colors">
-                <option value="">All Events</option>
+                <option value="">All Actions</option>
             </select>
         </div>
 
@@ -142,17 +160,15 @@
         <table class="w-full text-sm">
             <thead>
                 <tr class="border-b border-border bg-surface">
-                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">#</th>
-                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Event</th>
-                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide hidden sm:table-cell">User ID</th>
-                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide hidden md:table-cell">IP Address</th>
-                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide hidden lg:table-cell">Page / URL</th>
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">User</th>
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Action</th>
                     <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Date &amp; Time</th>
+                    <th class="text-left text-xs font-semibold text-text-muted px-5 py-3 uppercase tracking-wide">Details</th>
                 </tr>
             </thead>
             <tbody id="logsTableBody">
                 <tr>
-                    <td colspan="6" class="text-center py-12 text-text-muted">
+                    <td colspan="4" class="text-center py-12 text-text-muted">
                         <svg class="w-5 h-5 mx-auto mb-2 spinner text-blue-400"
                              fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -171,172 +187,233 @@
     </div>
 </div>
 
+@* ============== DETAIL MODAL ============== *@
+<div id="detailModal"
+     class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm items-center justify-center px-4">
+    <div id="detailBox"
+         class="bg-surface-card border border-border rounded-2xl shadow-xl w-full max-w-lg px-6 py-6 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-text-primary font-semibold text-base">Audit Log Details</h3>
+            <button onclick="closeDetail()" class="text-text-muted hover:text-text-primary transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div id="detailBody">
+            <div class="text-center py-10 text-text-muted">
+                <svg class="w-5 h-5 mx-auto mb-2 spinner text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+                <span class="text-xs">Loading details...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
     // ── State ────────────────────────────────────────────────────────────────
-    let allLogs      = [];
-    let filteredLogs = [];
-    const PAGE_SIZE  = 25;
+    // Pagination and filtering now happen server-side (Dashboard/Settings/AuditLogs/GetAll),
+    // instead of pulling every row and paginating in JS.
+    const PAGE_SIZE = 25;
     let currentPage  = 1;
+    let totalRecords = 0;
+    let totalPages   = 1;
+    let currentLogs  = [];   // rows for the currently displayed page only
+    let searchDebounceTimer = null;
 
     // ── Boot ─────────────────────────────────────────────────────────────────
-    async function loadLogs() {
+    async function init() {
+        await loadActions();
+        await loadLogs();
+    }
+
+    // ── Populate action dropdown ────────────────────────────────────────────
+    // Uses the dedicated GetActions endpoint so the dropdown always reflects
+    // every distinct action/event in the table, independent of pagination.
+    async function loadActions() {
         try {
-            const res = await fetch('/Dashboard/Settings/AuditLogs/GetAll');
+            const res = await fetch('/Dashboard/Settings/AuditLogs/GetActions');
             if (!res.ok) throw new Error();
-            allLogs = await res.json();
-            populateEventFilter(allLogs);
-            applyFilters();
+            const actions = await res.json();
+
+            const sel = document.getElementById('actionFilter');
+            actions.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a;
+                opt.textContent = a;
+                sel.appendChild(opt);
+            });
         } catch {
-            document.getElementById('logsTableBody').innerHTML = `
+            // Non-fatal: filter dropdown just stays at "All Actions".
+        }
+    }
+
+    // ── Build query string from current filter/pagination state ───────────
+    function buildQuery(overridePageSize) {
+        const search   = document.getElementById('searchInput').value.trim();
+        const action   = document.getElementById('actionFilter').value;
+        const dateFrom = document.getElementById('dateFrom').value;
+        const dateTo   = document.getElementById('dateTo').value;
+
+        const params = new URLSearchParams();
+        params.set('page', currentPage);
+        params.set('pageSize', overridePageSize || PAGE_SIZE);
+        if (search)   params.set('search', search);
+        if (action)   params.set('action', action);
+        if (dateFrom) params.set('dateFrom', dateFrom);
+        if (dateTo)   params.set('dateTo', dateTo);
+        return params.toString();
+    }
+
+    // ── Fetch current page from the server ─────────────────────────────────
+    async function loadLogs() {
+        const tbody = document.getElementById('logsTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center py-12 text-text-muted">
+                    <svg class="w-5 h-5 mx-auto mb-2 spinner text-blue-400"
+                         fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    <span class="text-xs">Loading audit logs...</span>
+                </td>
+            </tr>`;
+
+        try {
+            const res = await fetch(`/Dashboard/Settings/AuditLogs/GetAll?${buildQuery()}`);
+            if (!res.ok) throw new Error();
+            const payload = await res.json();
+
+            currentLogs  = payload.data ?? [];
+            totalRecords = payload.total ?? currentLogs.length;
+            totalPages   = payload.totalPages ?? 1;
+            currentPage  = payload.page ?? currentPage;
+
+            renderTable();
+        } catch {
+            tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-12 text-text-muted text-xs">
+                    <td colspan="4" class="text-center py-12 text-text-muted text-xs">
                         Failed to load audit logs. Please refresh the page.
                     </td>
                 </tr>`;
+            document.getElementById('logCount').textContent = '--';
+            document.getElementById('pagination').innerHTML = '';
         }
     }
 
-    // ── Populate event dropdown with unique event types ───────────────────
-    function populateEventFilter(logs) {
-        const events = [...new Set(logs.map(l => l.event).filter(Boolean))].sort();
-        const sel = document.getElementById('eventFilter');
-        events.forEach(ev => {
-            const opt = document.createElement('option');
-            opt.value = ev;
-            opt.textContent = ev;
-            sel.appendChild(opt);
-        });
+    // ── Filter changes: reset to page 1 and re-fetch ───────────────────────
+    function applyFilters() {
+        currentPage = 1;
+        loadLogs();
     }
 
-    // ── Filter + search ───────────────────────────────────────────────────
-    function applyFilters() {
-        const search    = document.getElementById('searchInput').value.trim().toLowerCase();
-        const eventVal  = document.getElementById('eventFilter').value.toLowerCase();
-        const dateFrom  = document.getElementById('dateFrom').value;
-        const dateTo    = document.getElementById('dateTo').value;
-
-        filteredLogs = allLogs.filter(l => {
-            if (search) {
-                const hay = [
-                    l.event, l.userId, l.ipAddress, l.pageUrl
-                ].map(v => String(v ?? '').toLowerCase()).join(' ');
-                if (!hay.includes(search)) return false;
-            }
-
-            if (eventVal && (l.event ?? '').toLowerCase() !== eventVal) return false;
-
-            if (dateFrom || dateTo) {
-                const logDate = new Date(l.eventDate);
-                if (dateFrom && logDate < new Date(dateFrom)) return false;
-                if (dateTo) {
-                    const end = new Date(dateTo);
-                    end.setHours(23, 59, 59, 999);
-                    if (logDate > end) return false;
-                }
-            }
-
-            return true;
-        });
-
-        currentPage = 1;
-        renderTable();
+    // Debounce free-text search so we don't hit the server on every keystroke.
+    function onSearchInput() {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(applyFilters, 350);
     }
 
     function clearFilters() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('eventFilter').value = '';
-        document.getElementById('dateFrom').value = '';
-        document.getElementById('dateTo').value = '';
+        document.getElementById('searchInput').value  = '';
+        document.getElementById('actionFilter').value = '';
+        document.getElementById('dateFrom').value     = '';
+        document.getElementById('dateTo').value       = '';
         applyFilters();
     }
 
-    // ── Render table for current page ─────────────────────────────────────
+    // ── Render table for the currently loaded page ─────────────────────────
     function renderTable() {
-        const tbody    = document.getElementById('logsTableBody');
-        const countEl  = document.getElementById('logCount');
-        const total    = filteredLogs.length;
-        const totalPgs = Math.max(1, Math.ceil(total / PAGE_SIZE));
-        if (currentPage > totalPgs) currentPage = totalPgs;
+        const tbody   = document.getElementById('logsTableBody');
+        const countEl = document.getElementById('logCount');
 
-        const start = (currentPage - 1) * PAGE_SIZE;
-        const page  = filteredLogs.slice(start, start + PAGE_SIZE);
+        countEl.textContent = totalRecords === 0
+            ? 'No records'
+            : `${totalRecords} record${totalRecords !== 1 ? 's' : ''} total`;
 
-        countEl.textContent = total === allLogs.length
-            ? `${total} record${total !== 1 ? 's' : ''} total`
-            : `${total} of ${allLogs.length} record${allLogs.length !== 1 ? 's' : ''} (filtered)`;
-
-        if (page.length === 0) {
+        if (currentLogs.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-12 text-text-muted text-xs">
+                    <td colspan="4" class="text-center py-12 text-text-muted text-xs">
                         No audit logs match your filters.
                     </td>
                 </tr>`;
-            renderPagination(0, 1);
+            renderPagination();
             return;
         }
 
-        tbody.innerHTML = page.map((l, idx) => {
-            const rowNum   = start + idx + 1;
-            const dateStr  = l.eventDate
+        tbody.innerHTML = currentLogs.map(l => {
+            const dateStr = l.eventDate
                 ? new Date(l.eventDate).toLocaleString('en-GB', {
                       day: '2-digit', month: 'short', year: 'numeric',
                       hour: '2-digit', minute: '2-digit', second: '2-digit'
                   })
                 : '--';
 
-            const eventBadge = getEventBadge(l.event);
+            // ── User cell ──────────────────────────────────────────────────
+            // Structured logs have userEmail; legacy logs show userId.
+            const userCell = l.userEmail
+                ? `<div class="font-medium text-text-primary text-xs">${escHtml(l.userEmail)}</div>`
+                : l.userId != null
+                    ? `<span class="font-mono bg-surface border border-border px-1.5 py-0.5 rounded text-text-muted text-xs">#${l.userId}</span>`
+                    : `<span class="text-text-muted text-xs">System</span>`;
+
+            // ── Action cell ────────────────────────────────────────────────
+            // Structured logs: show action badge. Legacy logs: show full event string.
+            const actionBadge = l.action
+                ? getActionBadge(l.action)
+                : getActionBadge(l.event);
+
+            const actionCell = l.action
+                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${actionBadge.classes}">
+                       ${escHtml(l.action)}
+                   </span>`
+                : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${actionBadge.classes}
+                               max-w-[260px] truncate" title="${escHtml(l.event || '')}">
+                       ${escHtml(l.event || '--')}
+                   </span>`;
 
             return `
             <tr class="log-row border-b border-border last:border-0">
-                <td class="px-5 py-3 text-text-muted text-xs font-mono">${rowNum}</td>
-                <td class="px-5 py-3">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
-                                 ${eventBadge.classes}">
-                        ${escHtml(l.event || '--')}
-                    </span>
-                </td>
-                <td class="px-5 py-3 text-text-secondary text-xs hidden sm:table-cell">
-                    ${l.userId != null
-                        ? `<span class="font-mono bg-surface border border-border px-1.5 py-0.5 rounded text-text-muted">#${l.userId}</span>`
-                        : '<span class="text-text-muted">System</span>'}
-                </td>
-                <td class="px-5 py-3 text-text-muted text-xs font-mono hidden md:table-cell">
-                    ${escHtml(l.ipAddress || '--')}
-                </td>
-                <td class="px-5 py-3 hidden lg:table-cell">
-                    <span class="text-xs text-text-muted truncate max-w-[260px] block" title="${escHtml(l.pageUrl || '')}">
-                        ${escHtml(l.pageUrl || '--')}
-                    </span>
-                </td>
+                <td class="px-5 py-3">${userCell}</td>
+                <td class="px-5 py-3">${actionCell}</td>
                 <td class="px-5 py-3 text-text-secondary text-xs whitespace-nowrap">${dateStr}</td>
+                <td class="px-5 py-3">
+                    <button onclick="viewDetail(${l.id})"
+                            class="text-xs px-2.5 py-1.5 rounded-lg border border-border
+                                   text-text-secondary hover:border-blue-300 hover:text-blue-600
+                                   hover:bg-blue-50 transition-colors">
+                        View
+                    </button>
+                </td>
             </tr>`;
         }).join('');
 
-        renderPagination(total, totalPgs);
+        renderPagination();
     }
 
-    // ── Event badge colour by keyword ─────────────────────────────────────
-    function getEventBadge(event) {
-        const ev = (event || '').toLowerCase();
-        if (ev.includes('login') || ev.includes('sign in') || ev.includes('auth'))
+    // ── Action badge colour by keyword ────────────────────────────────────
+    function getActionBadge(action) {
+        const a = (action || '').toLowerCase();
+        if (a.includes('login') || a.includes('sign in') || a.includes('auth'))
             return { classes: 'bg-green-50 text-green-700 border-green-200' };
-        if (ev.includes('logout') || ev.includes('sign out'))
+        if (a.includes('logout') || a.includes('sign out'))
             return { classes: 'bg-slate-50 text-slate-600 border-slate-200' };
-        if (ev.includes('delete') || ev.includes('remove') || ev.includes('error') || ev.includes('fail'))
+        if (a.includes('delete') || a.includes('remove') || a.includes('error') || a.includes('fail'))
             return { classes: 'bg-red-50 text-red-700 border-red-200' };
-        if (ev.includes('create') || ev.includes('add') || ev.includes('register'))
+        if (a.includes('create') || a.includes('add') || a.includes('register'))
             return { classes: 'bg-blue-50 text-blue-700 border-blue-200' };
-        if (ev.includes('update') || ev.includes('edit') || ev.includes('change') || ev.includes('password'))
+        if (a.includes('update') || a.includes('edit') || a.includes('change') || a.includes('reset') || a.includes('password'))
             return { classes: 'bg-amber-50 text-amber-700 border-amber-200' };
-        if (ev.includes('scan') || ev.includes('search') || ev.includes('check'))
+        if (a.includes('scan') || a.includes('search') || a.includes('check'))
             return { classes: 'bg-purple-50 text-purple-700 border-purple-200' };
         return { classes: 'bg-surface text-text-muted border-border' };
     }
 
-    // ── Pagination ────────────────────────────────────────────────────────
-    function renderPagination(total, totalPages) {
+    // ── Pagination (driven by server-reported total/totalPages) ───────────
+    function renderPagination() {
         const el = document.getElementById('pagination');
         if (totalPages <= 1) { el.innerHTML = ''; return; }
 
@@ -350,12 +427,12 @@
             let start = Math.max(2, currentPage - 1);
             let end   = Math.min(totalPages - 1, currentPage + 1);
 
-            if (currentPage <= 3)       end   = Math.min(totalPages - 1, 4);
-            if (currentPage >= totalPages - 2) start = Math.max(2, totalPages - 3);
+            if (currentPage <= 3)               end   = Math.min(totalPages - 1, 4);
+            if (currentPage >= totalPages - 2)  start = Math.max(2, totalPages - 3);
 
-            if (start > 2)            pages.push('...');
+            if (start > 2)             pages.push('...');
             for (let i = start; i <= end; i++) pages.push(i);
-            if (end < totalPages - 1) pages.push('...');
+            if (end < totalPages - 1)  pages.push('...');
             pages.push(totalPages);
         }
 
@@ -380,33 +457,112 @@
     }
 
     function goPage(p) {
-        const totalPages = Math.ceil(filteredLogs.length / PAGE_SIZE);
-        if (p < 1 || p > totalPages) return;
+        if (p < 1 || p > totalPages || p === currentPage) return;
         currentPage = p;
-        renderTable();
+        loadLogs();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    // ── Detail modal ──────────────────────────────────────────────────────
+    async function viewDetail(id) {
+        openDetailModal();
+        document.getElementById('detailBody').innerHTML = `
+            <div class="text-center py-10 text-text-muted">
+                <svg class="w-5 h-5 mx-auto mb-2 spinner text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+                <span class="text-xs">Loading details...</span>
+            </div>`;
+
+        try {
+            const res = await fetch(`/Dashboard/Settings/AuditLogs/GetById/${id}`);
+            if (!res.ok) throw new Error();
+            const log = await res.json();
+            renderDetail(log);
+        } catch {
+            document.getElementById('detailBody').innerHTML = `
+                <div class="text-center py-10 text-red-600 text-xs">
+                    Failed to load audit log details. Please try again.
+                </div>`;
+        }
+    }
+
+    function renderDetail(l) {
+        const dateStr = l.eventDate
+            ? new Date(l.eventDate).toLocaleString('en-GB', {
+                  day: '2-digit', month: 'short', year: 'numeric',
+                  hour: '2-digit', minute: '2-digit', second: '2-digit'
+              })
+            : '--';
+
+        const rows = [
+            ['ID', l.id],
+            ['User Email', l.userEmail || '—'],
+            ['User ID', l.userId != null ? `#${l.userId}` : '—'],
+            ['Action', l.action || '—'],
+            ['Resource', l.resourceName || '—'],
+            ['IP Address', l.ipAddress || '—'],
+            ['Page / URL', l.pageUrl || '—'],
+            ['Event (legacy)', l.event || '—'],
+            ['Date & Time', dateStr]
+        ];
+
+        document.getElementById('detailBody').innerHTML = rows.map(([label, value]) => `
+            <div class="detail-row">
+                <div class="detail-label">${escHtml(label)}</div>
+                <div class="detail-value">${escHtml(String(value))}</div>
+            </div>
+        `).join('');
+    }
+
+    function openDetailModal() {
+        document.getElementById('detailModal').classList.add('open');
+    }
+
+    function closeDetail() {
+        document.getElementById('detailModal').classList.remove('open');
+    }
+
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDetail();
+    });
+
     // ── CSV Export ────────────────────────────────────────────────────────
-    function exportCsv() {
-        if (filteredLogs.length === 0) return;
-        const headers = ['ID','Event','User ID','IP Address','Page URL','Event Date'];
-        const rows = filteredLogs.map(l => [
-            l.id,
-            csvEsc(l.event),
-            l.userId ?? '',
-            csvEsc(l.ipAddress),
-            csvEsc(l.pageUrl),
-            l.eventDate ? new Date(l.eventDate).toISOString() : ''
-        ]);
-        const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = `audit-logs-${new Date().toISOString().slice(0,10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+    // Exports every row matching the current filters (not just the visible page),
+    // by requesting the full filtered result set from the server in one page.
+    async function exportCsv() {
+        try {
+            const query = buildQuery(Math.max(totalRecords, 1));
+            const res = await fetch(`/Dashboard/Settings/AuditLogs/GetAll?${query}`);
+            if (!res.ok) throw new Error();
+            const payload = await res.json();
+            const rows = payload.data ?? [];
+
+            if (rows.length === 0) return;
+
+            const headers = ['ID', 'User Email', 'User ID', 'Action', 'Resource', 'IP Address', 'Page URL', 'Event (Legacy)', 'Event Date'];
+            const csvRows = rows.map(l => [
+                l.id,
+                csvEsc(l.userEmail),
+                l.userId ?? '',
+                csvEsc(l.action),
+                csvEsc(l.resourceName),
+                csvEsc(l.ipAddress),
+                csvEsc(l.pageUrl),
+                csvEsc(l.event),
+                l.eventDate ? new Date(l.eventDate).toISOString() : ''
+            ]);
+            const csv  = [headers, ...csvRows].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            alert('Failed to export audit logs. Please try again.');
+        }
     }
 
     function csvEsc(val) {
@@ -419,10 +575,10 @@
     // ── HTML escape ───────────────────────────────────────────────────────
     function escHtml(str) {
         return String(str)
-            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    loadLogs();
+    init();
 </script>
 }

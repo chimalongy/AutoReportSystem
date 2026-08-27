@@ -1,5 +1,19 @@
 namespace ARS.Models.ViewModels
 {
+    public class ReportDetailViewModel
+    {
+        public int ReportId { get; set; }
+        public string Name { get; set; } = string.Empty;
+
+        // Minimal report fields loaded up front
+        public int DbConnectionConfigId { get; set; }
+        public string Query { get; set; } = string.Empty;
+        public int? MaxRowsPerSheet { get; set; }
+
+        // Minimal db config fields loaded up front
+        public int? DbConfigId { get; set; }
+        public string? DbConfigDatabaseName { get; set; }
+    }
     public class CreateReportRequest
     {
         public string Name { get; set; } = string.Empty;
@@ -28,6 +42,7 @@ namespace ARS.Models.ViewModels
         public string? FileSavePath { get; set; }
         public int? MaxRowsPerSheet { get; set; }
         public List<DistributionDestinationRequest>? DistributionDestinations { get; set; }
+        public int ReportRecordDateOffsetDays { get; set; } = 0;
     }
 
     public class UpdateReportRequest
@@ -59,6 +74,7 @@ namespace ARS.Models.ViewModels
         public string? FileSavePath { get; set; }
         public int? MaxRowsPerSheet { get; set; }
         public List<DistributionDestinationRequest>? DistributionDestinations { get; set; }
+        public int? ReportRecordDateOffsetDays { get; set; }
     }
 
     public class UpdateReportStatusRequest

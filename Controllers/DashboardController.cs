@@ -6,6 +6,7 @@ using ARS.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.Security.Claims;
 
 namespace ARS.Controllers
@@ -22,6 +23,23 @@ namespace ARS.Controllers
             _db = db;
             _config = config;
             _reportScheduler = reportScheduler;
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // HELPERS
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Grabs the request context we want attached to every error/audit log entry.
+        /// Safe to call even if claims are missing (userId will be null instead of throwing).
+        /// </summary>
+        private (int userId, string? email, string? ipAddress, string? pageUrl) GetRequestContext()
+        {
+            int userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : 0;
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var pageUrl = HttpContext.Request.Path.ToString();
+            return (userId, email, ipAddress, pageUrl);
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -54,6 +72,32 @@ namespace ARS.Controllers
             return View("~/Views/Dashboard/Databases.cshtml");
         }
 
+
+        [Route("Dashboard/Reports")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
+        public IActionResult Reports()
+        {
+            return View("~/Views/Dashboard/Reports.cshtml");
+        }
+
+
+        [Route("Dashboard/Reports/Add")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
+        public IActionResult AddReport()
+        {
+            return View("~/Views/Dashboard/AddReport.cshtml");
+        }
+
+        [Route("Dashboard/Reports/Edit/{id:int}")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
+        public IActionResult EditReport(int id)
+        {
+            // The view reads this out of a hidden input rendered from ViewData,
+            // then uses it to call GetById on page load.
+            ViewData["ReportId"] = id;
+            return View("~/Views/Dashboard/EditReport.cshtml");
+        }
+
         // ══════════════════════════════════════════════════════════════════════
         // USERS API
         // ══════════════════════════════════════════════════════════════════════
@@ -63,8 +107,17 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> UsersGetAll()
         {
-            var users = await GlobalFunctions.GetAllUsersAsync(_db);
-            return Json(users);
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var users = await GlobalFunctions.GetAllUsersAsync(_db);
+                return Json(users);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(UsersGetAll), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching users." });
+            }
         }
 
         [HttpPost]
@@ -72,58 +125,71 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> UsersCreate([FromBody] CreateUserRequest req)
         {
-            // ── Authorization check: Support users cannot create users ──────────
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-
-
-            // ── Only Super Admin can create Admin users ─────────────────────────
-            if (string.Equals(req.Role, "Admin", StringComparison.OrdinalIgnoreCase) &&
-                !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                return BadRequest(new { message = "Only Super Admin can create Admin users." });
-            }
-
-            // ── Validate role ───────────────────────────────────────────────────
-            var validRoles = new[] { "Admin", "Support" };
-            if (!validRoles.Contains(req.Role ?? "Support"))
-                return BadRequest(new { message = "Role must be 'Admin' or 'Support'." });
-
-            var (result, error) = await GlobalFunctions.CreateUserAsync(
-                _db, _config,
-                req.FirstName, req.LastName, req.Email,
-                req.Department, req.Role);
-
-            if (error == "CONFLICT")
-                return Conflict(new { message = "A user with this email already exists." });
-
-            if (error is not null)
-                return BadRequest(new { message = error });
-
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - CREATED USER WITH EMAIL - {req.Email}",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
             try
             {
-                bool created = await EmailSender.SendUserCreationEmail(
-   address: req.Email,
-   firstName: req.FirstName,
-   defaultPassword: _config["DefaultPassword"]);
-            }
-            catch (Exception ex) { 
-              //do nothing
-            }
+                // ── Authorization check: Support users cannot create users ──────────
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
 
+                // ── Only Super Admin can create Admin users ─────────────────────────
+                if (string.Equals(req.Role, "Admin", StringComparison.OrdinalIgnoreCase) &&
+                    !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "Only Super Admin can create Admin users." });
+                }
 
-            return Json(result);
+                // ── Validate role ───────────────────────────────────────────────────
+                var validRoles = new[] { "Admin", "Support" };
+                if (!validRoles.Contains(req.Role ?? "Support"))
+                    return BadRequest(new { message = "Role must be 'Admin' or 'Support'." });
+
+                var (result, error) = await GlobalFunctions.CreateUserAsync(
+                    _db, _config,
+                    req.FirstName, req.LastName, req.Email,
+                    req.Department, req.Role);
+
+                if (error == "CONFLICT")
+                    return Conflict(new { message = "A user with this email already exists." });
+
+                if (error is not null)
+                    return BadRequest(new { message = error });
+
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - CREATED USER WITH EMAIL - {req.Email}",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl,
+                    userEmail: email,
+                    action: "Create User",
+                    resourceName: req.Email
+                );
+
+                try
+                {
+                    bool created = await EmailSender.SendUserCreationEmail(
+                        address: req.Email,
+                        firstName: req.FirstName,
+                        defaultPassword: _config["DefaultPassword"]);
+                }
+                catch (Exception ex)
+                {
+                    // Don't fail the request just because the welcome email didn't go out,
+                    // but make sure we know about it.
+                    ErrorLogger.LogError(ex, source: $"{nameof(UsersCreate)}.SendUserCreationEmail",
+                        userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                        additionalInfo: $"New user email: {req.Email}");
+                }
+
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(UsersCreate), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while creating the user." });
+            }
         }
 
         [HttpPost]
@@ -131,44 +197,51 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> UsersUpdate(int id, [FromBody] UpdateUserRequest req)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-
-            // Only Super Admin can change role to Admin
-            if (!string.IsNullOrWhiteSpace(req.Role) &&
-                req.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase) &&
-                !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                return BadRequest(new { message = "Only Super Admin can assign Admin role." });
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+
+                // Only Super Admin can change role to Admin
+                if (!string.IsNullOrWhiteSpace(req.Role) &&
+                    req.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase) &&
+                    !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "Only Super Admin can assign Admin role." });
+                }
+
+                var (result, error) = await GlobalFunctions.UpdateUserAsync(
+                    _db, id,
+                    req.FirstName, req.LastName, req.Email,
+                    req.Department, req.Role);
+
+                if (error == "NOT_FOUND")
+                    return NotFound(new { message = "User not found." });
+
+                if (error == "CONFLICT")
+                    return Conflict(new { message = "A user with this email already exists." });
+
+                if (error is not null)
+                    return BadRequest(new { message = error });
+
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - UPDATED USER WITH ID: {id}",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl
+                );
+
+                return Json(result);
             }
-
-            var (result, error) = await GlobalFunctions.UpdateUserAsync(
-                _db, id,
-                req.FirstName, req.LastName, req.Email,
-                req.Department, req.Role);
-
-            if (error == "NOT_FOUND")
-                return NotFound(new { message = "User not found." });
-
-            if (error == "CONFLICT")
-                return Conflict(new { message = "A user with this email already exists." });
-
-            if (error is not null)
-                return BadRequest(new { message = error });
-
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - UPDATED USER WITH ID: {id}",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-
-            return Json(result);
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(UsersUpdate), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Target user id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while updating the user." });
+            }
         }
 
         [HttpPost]
@@ -176,40 +249,49 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> UsersDelete(int id)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-
-            // Prevent users from deleting themselves
-            var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            if (id == currentUserId)
-                return BadRequest(new { message = "You cannot delete your own account." });
-
-            // Only Super Admin can delete Admin users
-            var targetUser = await _db.AppUsers.FindAsync(id);
-            if (targetUser?.Role?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true &&
-                !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                return BadRequest(new { message = "Only Super Admin can delete Admin users." });
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+
+                // Prevent users from deleting themselves
+                if (id == userId)
+                    return BadRequest(new { message = "You cannot delete your own account." });
+
+                // Only Super Admin can delete Admin users
+                var targetUser = await _db.AppUsers.FindAsync(id);
+                if (targetUser?.Role?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true &&
+                    !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "Only Super Admin can delete Admin users." });
+                }
+
+                var error = await GlobalFunctions.DeleteUserAsync(_db, id);
+
+                if (error == "NOT_FOUND")
+                    return NotFound(new { message = "User not found." });
+
+                await AuditLogger.LogAsync(
+                     db: _db,
+                     eventName: $"{email} - DELETED USER WITH USER ID: {id}",
+                     userId: userId,
+                     ipAddress: ipAddress,
+                     pageUrl: pageUrl,
+                     userEmail: email,
+                     action: "Delete User",
+                     resourceName: targetUser.Email  // grab before delete
+                 );
+
+                return Json(new { message = "User deleted." });
             }
-
-            var error = await GlobalFunctions.DeleteUserAsync(_db, id);
-
-            if (error == "NOT_FOUND")
-                return NotFound(new { message = "User not found." });
-
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - DELETED USER WITH USER ID: {id}",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-
-            return Json(new { message = "User deleted." });
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(UsersDelete), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Target user id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while deleting the user." });
+            }
         }
 
         [HttpPost]
@@ -217,99 +299,105 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> UsersUpdateStatus(int id, [FromBody] UpdateStatusRequest req)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
 
-            // Prevent users from disabling themselves
-            var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            if (id == currentUserId)
-                return BadRequest(new { message = "You cannot change your own status." });
+                // Prevent users from disabling themselves
+                if (id == userId)
+                    return BadRequest(new { message = "You cannot change your own status." });
 
-            var (result, error) = await GlobalFunctions.UpdateUserStatusAsync(_db, id, req.ProfileStatus);
+                var (result, error) = await GlobalFunctions.UpdateUserStatusAsync(_db, id, req.ProfileStatus);
 
-            if (error == "NOT_FOUND")
-                return NotFound(new { message = "User not found." });
+                if (error == "NOT_FOUND")
+                    return NotFound(new { message = "User not found." });
 
-            if (error is not null)
-                return BadRequest(new { message = error });
+                if (error is not null)
+                    return BadRequest(new { message = error });
 
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - UPDATED USER WITH USER ID: {id} - STATUS TO {req.ProfileStatus}",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl
+                );
 
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - UPDATED USER WITH USER ID: {id} - STATUS TO {req.ProfileStatus}",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-
-            return Json(result);
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(UsersUpdateStatus), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Target user id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while updating user status." });
+            }
         }
-
 
         [HttpPost]
         [Route("Dashboard/Settings/Users/ResetPassword/{id:int}")]
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> UsersResetPassword(int id)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-
-            // Only Super Admin can reset Admin passwords
-            var targetUser = await _db.AppUsers.FindAsync(id);
-            if (targetUser is null)
-                return NotFound(new { message = "User not found." });
-
-            if (targetUser.Role?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true &&
-                !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                return BadRequest(new { message = "Only Super Admin can reset Admin passwords." });
-            }
-
-            var defaultPassword = _config["DefaultPassword"];
-            if (string.IsNullOrWhiteSpace(defaultPassword))
-                return BadRequest(new { message = "Default password is not configured." });
-
-            targetUser.Password = BCrypt.Net.BCrypt.HashPassword(defaultPassword);
-            await _db.SaveChangesAsync();
-
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - RESET PASSWORD FOR USER WITH EMAIL - {targetUser.Email}",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
             try
             {
-                await EmailSender.SendUserCreationEmail(
-                    address: targetUser.Email,
-                    firstName: targetUser.FirstName,
-                    defaultPassword: defaultPassword);
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+
+                // Only Super Admin can reset Admin passwords
+                var targetUser = await _db.AppUsers.FindAsync(id);
+                if (targetUser is null)
+                    return NotFound(new { message = "User not found." });
+
+                if (targetUser.Role?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true &&
+                    !currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "Only Super Admin can reset Admin passwords." });
+                }
+
+                var defaultPassword = _config["DefaultPassword"];
+                if (string.IsNullOrWhiteSpace(defaultPassword))
+                    return BadRequest(new { message = "Default password is not configured." });
+
+                targetUser.Password = BCrypt.Net.BCrypt.HashPassword(defaultPassword);
+                await _db.SaveChangesAsync();
+
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - RESET PASSWORD FOR USER WITH EMAIL - {targetUser.Email}",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl
+                );
+
+                try
+                {
+                    await EmailSender.SendUserCreationEmail(
+                        address: targetUser.Email,
+                        firstName: targetUser.FirstName,
+                        defaultPassword: defaultPassword);
+                }
+                catch (Exception ex)
+                {
+                    // Password is reset regardless — but log so we know the notification failed.
+                    ErrorLogger.LogError(ex, source: $"{nameof(UsersResetPassword)}.SendUserCreationEmail",
+                        userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                        additionalInfo: $"Target user id: {id}");
+                }
+
+                return Json(new { message = "Password reset successfully." });
             }
-            catch { /* swallow — password is reset regardless */ }
-
-            return Json(new { message = "Password reset successfully." });
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(UsersResetPassword), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Target user id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while resetting the password." });
+            }
         }
-
-
-
-
-
-
-
-
-
-
-
-
 
         // ══════════════════════════════════════════════════════════════════════
         // AUDIT LOGS API
@@ -318,11 +406,135 @@ namespace ARS.Controllers
         [HttpGet]
         [Route("Dashboard/Settings/AuditLogs/GetAll")]
         [Authorize(Roles = "Super Admin,Admin")]
-        public async Task<IActionResult> AuditLogsGetAll()
+        public async Task<IActionResult> AuditLogsGetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 15,
+        [FromQuery] string? search = null,
+        [FromQuery] string? action = null,
+        [FromQuery] DateTime? dateFrom = null,
+        [FromQuery] DateTime? dateTo = null)
         {
-            var logs = await GlobalFunctions.GetAllAuditLogsAsync(_db);
-            return Json(logs);
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                if (page < 1) page = 1;
+                if (pageSize < 1 || pageSize > 25) pageSize = 15;
+
+                var query = _db.AuditLogs.AsQueryable();
+
+                // ── Action filter (matches structured Action, falls back to legacy Event) ──
+                if (!string.IsNullOrWhiteSpace(action))
+                {
+                    query = query.Where(l => l.Action == action || l.Event == action);
+                }
+
+                // ── Date range ────────────────────────────────────────────────────
+                if (dateFrom.HasValue)
+                {
+                    var from = dateFrom.Value.Date;
+                    query = query.Where(l => l.EventDate >= from);
+                }
+
+                if (dateTo.HasValue)
+                {
+                    var to = dateTo.Value.Date.AddDays(1).AddTicks(-1);
+                    query = query.Where(l => l.EventDate <= to);
+                }
+
+                // ── Free-text search across the fields the UI searches on ──────────
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var s = search.Trim().ToLower();
+                    query = query.Where(l =>
+                        (l.UserEmail != null && l.UserEmail.ToLower().Contains(s)) ||
+                        (l.Action != null && l.Action.ToLower().Contains(s)) ||
+                        (l.ResourceName != null && l.ResourceName.ToLower().Contains(s)) ||
+                        (l.Event != null && l.Event.ToLower().Contains(s)) ||
+                        (l.IpAddress != null && l.IpAddress.ToLower().Contains(s)) ||
+                        (l.PageUrl != null && l.PageUrl.ToLower().Contains(s)));
+                }
+
+                var totalCount = await query.CountAsync();
+
+                var logs = await query
+                    .OrderByDescending(l => l.EventDate)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalPages = totalCount == 0 ? 1 : (totalCount + pageSize - 1) / pageSize;
+
+                return Json(new
+                {
+                    data = logs,
+                    total = totalCount,
+                    page,
+                    pageSize,
+                    totalPages
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(AuditLogsGetAll), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching audit logs." });
+            }
         }
+
+        [HttpGet]
+        [Route("Dashboard/Settings/AuditLogs/GetById/{id:int}")]
+        [Authorize(Roles = "Super Admin,Admin")]
+        public async Task<IActionResult> AuditLogsGetById(int id)
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var log = await _db.AuditLogs.FindAsync(id);
+                if (log is null)
+                    return NotFound(new { message = "Audit log not found." });
+
+                return Json(log);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(AuditLogsGetById), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Audit log id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching the audit log." });
+            }
+        }
+
+        // Populates the "Action" filter dropdown independently of pagination,
+        // so it always reflects every distinct action/event in the table.
+        [HttpGet]
+        [Route("Dashboard/Settings/AuditLogs/GetActions")]
+        [Authorize(Roles = "Super Admin,Admin")]
+        public async Task<IActionResult> AuditLogsGetActions()
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var actions = await _db.AuditLogs
+                    .Where(l => l.Action != null)
+                    .Select(l => l.Action!)
+                    .Distinct()
+                    .ToListAsync();
+
+                var events = await _db.AuditLogs
+                    .Where(l => l.Action == null && l.Event != null)
+                    .Select(l => l.Event!)
+                    .Distinct()
+                    .ToListAsync();
+
+                var combined = actions.Concat(events).Distinct().OrderBy(a => a).ToList();
+
+                return Json(combined);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(AuditLogsGetActions), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching actions." });
+            }
+        }
+
 
         // ══════════════════════════════════════════════════════════════════════
         // DATABASE CONFIGURATIONS API
@@ -333,23 +545,32 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin, Support")]
         public async Task<IActionResult> DbConfigsGetAll()
         {
-            var configs = await _db.DbConnectionConfigs
-                .OrderByDescending(c => c.CreatedAt)
-                .Select(c => new
-                {
-                    c.Id,
-                    c.DatabaseType,
-                    c.Host,
-                    c.Port,
-                    c.DatabaseName,
-                    c.Username,
-                    c.Status,
-                    c.CreatedAt,
-                    c.UpdatedAt
-                })
-                .ToListAsync();
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var configs = await _db.DbConnectionConfigs
+                    .OrderByDescending(c => c.CreatedAt)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.DatabaseType,
+                        c.Host,
+                        c.Port,
+                        c.DatabaseName,
+                        c.Username,
+                        c.Status,
+                        c.CreatedAt,
+                        c.UpdatedAt
+                    })
+                    .ToListAsync();
 
-            return Json(configs);
+                return Json(configs);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(DbConfigsGetAll), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching database configurations." });
+            }
         }
 
         [HttpPost]
@@ -357,86 +578,98 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> DbConfigCreate([FromBody] CreateDbConfigRequest req)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-
-            // ── Validate ──────────────────────────────────────────────────────
-            if (string.IsNullOrWhiteSpace(req.Host) ||
-                string.IsNullOrWhiteSpace(req.DatabaseName) ||
-                string.IsNullOrWhiteSpace(req.Username) ||
-                string.IsNullOrWhiteSpace(req.Password))
-            {
-                return BadRequest(new { message = "Host, database name, username, and password are all required." });
-            }
-
-            var validTypes = new[] { "postgresql", "postgres", "oracle" };
-            if (!validTypes.Contains(req.DatabaseType?.ToLowerInvariant() ?? ""))
-                return BadRequest(new { message = "Database type must be PostgreSQL or Oracle." });
-
-            if (req.Port <= 0 || req.Port > 65535)
-                return BadRequest(new { message = "Port must be between 1 and 65535." });
-
-            // ── Build encrypted connection string ─────────────────────────────
-            string encryptedConnectionString;
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
             try
             {
-                encryptedConnectionString = ConnectionStringBuilder.BuildEncryptedConnectionString(
-                    req.DatabaseType!, req.Host, req.Port, req.DatabaseName, req.Username, req.Password);
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+
+                // ── Validate ──────────────────────────────────────────────────────
+                if (string.IsNullOrWhiteSpace(req.Host) ||
+                    string.IsNullOrWhiteSpace(req.DatabaseName) ||
+                    string.IsNullOrWhiteSpace(req.Username) ||
+                    string.IsNullOrWhiteSpace(req.Password))
+                {
+                    return BadRequest(new { message = "Host, database name, username, and password are all required." });
+                }
+
+                var validTypes = new[] { "postgresql", "postgres", "oracle" };
+                if (!validTypes.Contains(req.DatabaseType?.ToLowerInvariant() ?? ""))
+                    return BadRequest(new { message = "Database type must be PostgreSQL or Oracle." });
+
+                if (req.Port <= 0 || req.Port > 65535)
+                    return BadRequest(new { message = "Port must be between 1 and 65535." });
+
+                // ── Build encrypted connection string ─────────────────────────────
+                string encryptedConnectionString;
+                try
+                {
+                    encryptedConnectionString = ConnectionStringBuilder.BuildEncryptedConnectionString(
+                        req.DatabaseType!, req.Host, req.Port, req.DatabaseName, req.Username, req.Password);
+                }
+                catch (Exception ex)
+                {
+                    ErrorLogger.LogError(ex, source: $"{nameof(DbConfigCreate)}.BuildEncryptedConnectionString",
+                        userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                    return BadRequest(new { message = $"Failed to build connection string: {ex.Message}" });
+                }
+
+                // ── Normalize database type to consistent values ──────────────────
+                var normalizedType = req.DatabaseType!.ToLowerInvariant() switch
+                {
+                    "postgres" => "PostgreSQL",
+                    "postgresql" => "PostgreSQL",
+                    "oracle" => "Oracle",
+                    _ => req.DatabaseType!
+                };
+
+                // ── Save ──────────────────────────────────────────────────────────
+                var config = new DbConnectionConfig
+                {
+                    DatabaseType = normalizedType,
+                    Host = req.Host.Trim(),
+                    Port = req.Port,
+                    DatabaseName = req.DatabaseName.Trim(),
+                    Username = req.Username.Trim(),
+                    EncryptedConnectionString = encryptedConnectionString,
+                    Status = "active",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _db.DbConnectionConfigs.Add(config);
+                await _db.SaveChangesAsync();
+
+                // ── Audit log ─────────────────────────────────────────────────────
+                await AuditLogger.LogAsync(
+                     db: _db,
+                     eventName: $"{email} - CREATED DATABASE CONFIG '{config.DatabaseName}' ON {config.Host}",
+                     userId: userId,
+                     ipAddress: ipAddress,
+                     pageUrl: pageUrl,
+                     userEmail: email,
+                     action: "Create Database",
+                     resourceName: config.DatabaseName
+                 );
+
+                return Json(new
+                {
+                    config.Id,
+                    config.DatabaseType,
+                    config.Host,
+                    config.Port,
+                    config.DatabaseName,
+                    config.Username,
+                    config.Status,
+                    config.CreatedAt,
+                    config.UpdatedAt
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = $"Failed to build connection string: {ex.Message}" });
+                ErrorLogger.LogError(ex, source: nameof(DbConfigCreate), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while creating the database configuration." });
             }
-
-            // ── Normalize database type to consistent values ──────────────────
-            var normalizedType = req.DatabaseType!.ToLowerInvariant() switch
-            {
-                "postgres" => "PostgreSQL",
-                "postgresql" => "PostgreSQL",
-                "oracle" => "Oracle",
-                _ => req.DatabaseType!
-            };
-
-            // ── Save ──────────────────────────────────────────────────────────
-            var config = new DbConnectionConfig
-            {
-                DatabaseType = normalizedType,
-                Host = req.Host.Trim(),
-                Port = req.Port,
-                DatabaseName = req.DatabaseName.Trim(),
-                Username = req.Username.Trim(),
-                EncryptedConnectionString = encryptedConnectionString,
-                Status = "active",
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _db.DbConnectionConfigs.Add(config);
-            await _db.SaveChangesAsync();
-
-            // ── Audit log ─────────────────────────────────────────────────────
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - CREATED DATABASE CONFIG '{config.DatabaseName}' ON {config.Host}",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-
-            return Json(new
-            {
-                config.Id,
-                config.DatabaseType,
-                config.Host,
-                config.Port,
-                config.DatabaseName,
-                config.Username,
-                config.Status,
-                config.CreatedAt,
-                config.UpdatedAt
-            });
         }
 
         [HttpPost]
@@ -444,86 +677,97 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> DbConfigUpdate(int id, [FromBody] UpdateDbConfigRequest req)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-
-            var config = await _db.DbConnectionConfigs.FindAsync(id);
-            if (config is null)
-                return NotFound(new { message = "Database configuration not found." });
-
-            // ── Update fields ─────────────────────────────────────────────────
-            if (!string.IsNullOrWhiteSpace(req.DatabaseType))
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                var validTypes = new[] { "postgresql", "postgres", "oracle" };
-                if (!validTypes.Contains(req.DatabaseType.ToLowerInvariant()))
-                    return BadRequest(new { message = "Database type must be PostgreSQL or Oracle." });
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
 
-                config.DatabaseType = req.DatabaseType.ToLowerInvariant() switch
+                var config = await _db.DbConnectionConfigs.FindAsync(id);
+                if (config is null)
+                    return NotFound(new { message = "Database configuration not found." });
+
+                // ── Update fields ─────────────────────────────────────────────────
+                if (!string.IsNullOrWhiteSpace(req.DatabaseType))
                 {
-                    "postgres" => "PostgreSQL",
-                    "postgresql" => "PostgreSQL",
-                    "oracle" => "Oracle",
-                    _ => req.DatabaseType
-                };
-            }
+                    var validTypes = new[] { "postgresql", "postgres", "oracle" };
+                    if (!validTypes.Contains(req.DatabaseType.ToLowerInvariant()))
+                        return BadRequest(new { message = "Database type must be PostgreSQL or Oracle." });
 
-            if (!string.IsNullOrWhiteSpace(req.Host))
-                config.Host = req.Host.Trim();
-
-            if (req.Port.HasValue)
-            {
-                if (req.Port.Value <= 0 || req.Port.Value > 65535)
-                    return BadRequest(new { message = "Port must be between 1 and 65535." });
-                config.Port = req.Port.Value;
-            }
-
-            if (!string.IsNullOrWhiteSpace(req.DatabaseName))
-                config.DatabaseName = req.DatabaseName.Trim();
-
-            if (!string.IsNullOrWhiteSpace(req.Username))
-                config.Username = req.Username.Trim();
-
-            // ── Rebuild connection string if password provided ────────────────
-            if (!string.IsNullOrWhiteSpace(req.Password))
-            {
-                try
-                {
-                    config.EncryptedConnectionString = ConnectionStringBuilder.BuildEncryptedConnectionString(
-                        config.DatabaseType, config.Host, config.Port, config.DatabaseName, config.Username, req.Password);
+                    config.DatabaseType = req.DatabaseType.ToLowerInvariant() switch
+                    {
+                        "postgres" => "PostgreSQL",
+                        "postgresql" => "PostgreSQL",
+                        "oracle" => "Oracle",
+                        _ => req.DatabaseType
+                    };
                 }
-                catch (Exception ex)
+
+                if (!string.IsNullOrWhiteSpace(req.Host))
+                    config.Host = req.Host.Trim();
+
+                if (req.Port.HasValue)
                 {
-                    return BadRequest(new { message = $"Failed to rebuild connection string: {ex.Message}" });
+                    if (req.Port.Value <= 0 || req.Port.Value > 65535)
+                        return BadRequest(new { message = "Port must be between 1 and 65535." });
+                    config.Port = req.Port.Value;
                 }
+
+                if (!string.IsNullOrWhiteSpace(req.DatabaseName))
+                    config.DatabaseName = req.DatabaseName.Trim();
+
+                if (!string.IsNullOrWhiteSpace(req.Username))
+                    config.Username = req.Username.Trim();
+
+                // ── Rebuild connection string if password provided ────────────────
+                if (!string.IsNullOrWhiteSpace(req.Password))
+                {
+                    try
+                    {
+                        config.EncryptedConnectionString = ConnectionStringBuilder.BuildEncryptedConnectionString(
+                            config.DatabaseType, config.Host, config.Port, config.DatabaseName, config.Username, req.Password);
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogError(ex, source: $"{nameof(DbConfigUpdate)}.BuildEncryptedConnectionString",
+                            userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                            additionalInfo: $"Db config id: {id}");
+                        return BadRequest(new { message = $"Failed to rebuild connection string: {ex.Message}" });
+                    }
+                }
+
+                config.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+
+                // ── Audit log ─────────────────────────────────────────────────────
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - UPDATED DATABASE CONFIG ID: {id} - '{config.DatabaseName}'",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl
+                );
+
+                return Json(new
+                {
+                    config.Id,
+                    config.DatabaseType,
+                    config.Host,
+                    config.Port,
+                    config.DatabaseName,
+                    config.Username,
+                    config.Status,
+                    config.CreatedAt,
+                    config.UpdatedAt
+                });
             }
-
-            config.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-
-            // ── Audit log ─────────────────────────────────────────────────────
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - UPDATED DATABASE CONFIG ID: {id} - '{config.DatabaseName}'",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-
-            return Json(new
+            catch (Exception ex)
             {
-                config.Id,
-                config.DatabaseType,
-                config.Host,
-                config.Port,
-                config.DatabaseName,
-                config.Username,
-                config.Status,
-                config.CreatedAt,
-                config.UpdatedAt
-            });
+                ErrorLogger.LogError(ex, source: nameof(DbConfigUpdate), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Db config id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while updating the database configuration." });
+            }
         }
 
         [HttpPost]
@@ -531,29 +775,37 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> DbConfigDelete(int id)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
 
-            var config = await _db.DbConnectionConfigs.FindAsync(id);
-            if (config is null)
-                return NotFound(new { message = "Database configuration not found." });
+                var config = await _db.DbConnectionConfigs.FindAsync(id);
+                if (config is null)
+                    return NotFound(new { message = "Database configuration not found." });
 
-            _db.DbConnectionConfigs.Remove(config);
-            await _db.SaveChangesAsync();
+                _db.DbConnectionConfigs.Remove(config);
+                await _db.SaveChangesAsync();
 
-            // ── Audit log ─────────────────────────────────────────────────────
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - DELETED DATABASE CONFIG ID: {id} - '{config.DatabaseName}'",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
+                // ── Audit log ─────────────────────────────────────────────────────
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - DELETED DATABASE CONFIG ID: {id} - '{config.DatabaseName}'",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl
+                );
 
-            return Json(new { message = "Database configuration deleted." });
+                return Json(new { message = "Database configuration deleted." });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(DbConfigDelete), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Db config id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while deleting the database configuration." });
+            }
         }
 
         [HttpPost]
@@ -561,63 +813,93 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> DbConfigUpdateStatus(int id, [FromBody] UpdateDbStatusRequest req)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-                return Forbid();
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
 
-            var allowed = new[] { "active", "inactive" };
-            if (!allowed.Contains(req.Status?.ToLowerInvariant() ?? ""))
-                return BadRequest(new { message = "Status must be 'active' or 'inactive'." });
+                var allowed = new[] { "active", "inactive" };
+                if (!allowed.Contains(req.Status?.ToLowerInvariant() ?? ""))
+                    return BadRequest(new { message = "Status must be 'active' or 'inactive'." });
 
-            var config = await _db.DbConnectionConfigs.FindAsync(id);
-            if (config is null)
-                return NotFound(new { message = "Database configuration not found." });
+                var config = await _db.DbConnectionConfigs.FindAsync(id);
+                if (config is null)
+                    return NotFound(new { message = "Database configuration not found." });
 
-            config.Status = req.Status!.ToLowerInvariant();
-            config.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
+                config.Status = req.Status!.ToLowerInvariant();
+                config.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
 
-            // ── Audit log ─────────────────────────────────────────────────────
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - UPDATED DATABASE CONFIG ID: {id} STATUS TO {config.Status}",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
+                // ── Audit log ─────────────────────────────────────────────────────
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - UPDATED DATABASE CONFIG ID: {id} STATUS TO {config.Status}",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl
+                );
 
-            return Json(new { config.Id, config.Status });
+                return Json(new { config.Id, config.Status });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(DbConfigUpdateStatus), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Db config id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while updating the database status." });
+            }
         }
+
+
 
         [HttpPost]
         [Route("Dashboard/Databases/TestConnection")]
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> DbConfigTestConnection([FromBody] TestConnectionRequest req)
         {
-            if (string.IsNullOrWhiteSpace(req.Host) ||
-                string.IsNullOrWhiteSpace(req.DatabaseName) ||
-                string.IsNullOrWhiteSpace(req.Username) ||
-                string.IsNullOrWhiteSpace(req.Password))
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                return BadRequest(new { message = "Host, database name, username, and password are all required to test a connection." });
+                if (string.IsNullOrWhiteSpace(req.Host) ||
+                    string.IsNullOrWhiteSpace(req.DatabaseName) ||
+                    string.IsNullOrWhiteSpace(req.Username) ||
+                    string.IsNullOrWhiteSpace(req.Password))
+                {
+                    return BadRequest(new { message = "Host, database name, username, and password are all required to test a connection." });
+                }
+
+                var validTypes = new[] { "postgresql", "postgres", "oracle" };
+                if (!validTypes.Contains(req.DatabaseType?.ToLowerInvariant() ?? ""))
+                    return BadRequest(new { message = "Database type must be PostgreSQL or Oracle." });
+
+                if (req.Port <= 0 || req.Port > 65535)
+                    return BadRequest(new { message = "Port must be between 1 and 65535." });
+
+                var (success, error) = await ConnectionStringBuilder.TestConnectionAsync(
+                    req.DatabaseType!, req.Host, req.Port, req.DatabaseName, req.Username, req.Password);
+
+                if (success)
+                    return Json(new { success = true, message = "Connection successful! Database is reachable." });
+
+                // ── Log connection failure as an error ──────────────────────────────
+                ErrorLogger.LogError(
+                    new Exception($"Connection test failed: {error}"),
+                    source: nameof(DbConfigTestConnection),
+                    userEmail: email,
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl,
+                    additionalInfo: $"Host: {req.Host}, Port: {req.Port}, DB: {req.DatabaseName}, Type: {req.DatabaseType}"
+                );
+
+                return BadRequest(new { success = false, message = error ?? "Connection failed." });
             }
-
-            var validTypes = new[] { "postgresql", "postgres", "oracle" };
-            if (!validTypes.Contains(req.DatabaseType?.ToLowerInvariant() ?? ""))
-                return BadRequest(new { message = "Database type must be PostgreSQL or Oracle." });
-
-            if (req.Port <= 0 || req.Port > 65535)
-                return BadRequest(new { message = "Port must be between 1 and 65535." });
-
-            var (success, error) = await ConnectionStringBuilder.TestConnectionAsync(
-                req.DatabaseType!, req.Host, req.Port, req.DatabaseName, req.Username, req.Password);
-
-            if (success)
-                return Json(new { success = true, message = "Connection successful! Database is reachable." });
-
-            return BadRequest(new { success = false, message = error ?? "Connection failed." });
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(DbConfigTestConnection), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { success = false, message = "An unexpected error occurred while testing the connection." });
+            }
         }
 
         [HttpPost]
@@ -625,102 +907,163 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> DbConfigTestExisting(int id)
         {
-            var config = await _db.DbConnectionConfigs.FindAsync(id);
-            if (config is null)
-                return NotFound(new { message = "Database configuration not found." });
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var config = await _db.DbConnectionConfigs.FindAsync(id);
+                if (config is null)
+                    return NotFound(new { message = "Database configuration not found." });
 
-            var (success, error) = await ConnectionStringBuilder.TestEncryptedConnectionAsync(config.EncryptedConnectionString);
+                var (success, error) = await ConnectionStringBuilder.TestEncryptedConnectionAsync(config.EncryptedConnectionString);
 
-            if (success)
-                return Json(new { success = true, message = "Connection successful! Database is reachable." });
+                if (success)
+                    return Json(new { success = true, message = "Connection successful! Database is reachable." });
 
-            return BadRequest(new { success = false, message = error ?? "Connection failed." });
+                // ── Log connection failure as an error ──────────────────────────────
+                ErrorLogger.LogError(
+                    new Exception($"Connection test failed: {error}"),
+                    source: nameof(DbConfigTestExisting),
+                    userEmail: email,
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl,
+                    additionalInfo: $"Db config id: {id}, Host: {config.Host}, DB: {config.DatabaseName}"
+                );
+
+                return BadRequest(new { success = false, message = error ?? "Connection failed." });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(DbConfigTestExisting), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Db config id: {id}");
+                return StatusCode(500, new { success = false, message = "An unexpected error occurred while testing the connection." });
+            }
         }
-
-
-
-
-
         // ══════════════════════════════════════════════════════════════════════
         // REPORTS VIEWS
         // ══════════════════════════════════════════════════════════════════════
 
-        [Route("Dashboard/Reports")]
-        [Authorize(Roles = "Super Admin,Admin, Support")]
-        public IActionResult Reports()
-        {
-            return View("~/Views/Dashboard/Reports.cshtml");
-        }
+
 
         // ══════════════════════════════════════════════════════════════════════
         // REPORTS API
         // ══════════════════════════════════════════════════════════════════════
 
-
-
         [HttpGet]
         [Route("Dashboard/Reports/GetAll")]
         [Authorize(Roles = "Super Admin,Admin, Support")]
-        public async Task<IActionResult> ReportsGetAll()
+        public async Task<IActionResult> ReportsGetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 25)
         {
-            var reports = await _db.Reports
-                .Include(r => r.DistributionDestinations)
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new
-                {
-                    r.Id,
-                    r.Name,
-                    r.DbConnectionConfigId,
-                    r.Query,
-                    r.OutputFileName,
-                    r.OutputFormat,
-                    r.ExecutionType,
-                    r.SingleRunTiming,
-                    r.SingleRunDateTime,
-                    r.ScheduleFrequency,
-                    r.ScheduleDaysOfWeek,
-                    r.ScheduleDayOfMonth,
-                    r.ScheduleCustomDates,
-                    r.ScheduleCustomRecurring,
-                    r.ScheduleTime,
-                    r.Status,
-                    r.LastRunDate,
-                    r.NextRunDate,
-                    r.CreatedAt,
-                    r.UpdatedAt,
-                    r.LastErrorMessage,
-                    // Distribution
-                    r.EnableEmailDistribution,
-                    r.EmailToRecipients,
-                    r.EmailCcRecipients,
-                    r.EmailBccRecipients,
-                    r.EmailSubject,
-                    r.EmailBodyTemplate,
-                    r.EnableFileSave,
-                    r.FileSavePath,
-                    r.MaxRowsPerSheet,
-                    DistributionDestinations = r.DistributionDestinations.Select(d => new
-                    {
-                        d.Id,
-                        d.DestinationType,
-                        d.EmailTo,
-                        d.EmailCc,
-                        d.EmailBcc,
-                        d.EmailSubject,
-                        d.EmailBody,
-                        d.FilePath,
-                        //d.MaxRowsPerSheet,  // ← ADD THIS
-                        d.IsActive
-                    }).ToList()
-                })
-                .ToListAsync();
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                if (page < 1) page = 1;
+                if (pageSize < 1 || pageSize > 100) pageSize = 25;
 
-            return Json(reports);
+                var totalCount = await _db.Reports.CountAsync();
+
+                var reports = await _db.Reports
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(r => new
+                    {
+                        r.Id,
+                        r.Name,
+                        r.OutputFormat,
+                        r.Status
+                    })
+                    .ToListAsync();
+
+                var totalPages = totalCount == 0 ? 1 : (totalCount + pageSize - 1) / pageSize;
+
+                return Json(new
+                {
+                    data = reports,
+                    total = totalCount,
+                    page,
+                    pageSize,
+                    totalPages
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportsGetAll), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching reports." });
+            }
         }
 
+        [HttpGet]
+        [Route("Dashboard/Reports/GetById/{id:int}")]
+        [Authorize(Roles = "Super Admin,Admin, Support")]
+        public async Task<IActionResult> ReportsGetById(int id)
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var report = await _db.Reports
+                    .Include(r => r.DistributionDestinations)
+                    .Where(r => r.Id == id)
+                    .Select(r => new
+                    {
+                        r.Id,
+                        r.Name,
+                        r.DbConnectionConfigId,
+                        r.Query,
+                        r.OutputFileName,
+                        r.OutputFormat,
+                        r.ExecutionType,
+                        r.SingleRunTiming,
+                        r.SingleRunDateTime,
+                        r.ScheduleFrequency,
+                        r.ScheduleDaysOfWeek,
+                        r.ScheduleDayOfMonth,
+                        r.ScheduleCustomDates,
+                        r.ScheduleCustomRecurring,
+                        r.ScheduleTime,
+                        r.Status,
+                        r.LastRunDate,
+                        r.NextRunDate,
+                        r.CreatedAt,
+                        r.UpdatedAt,
+                        r.LastErrorMessage,
+                        // Distribution
+                        r.EnableEmailDistribution,
+                        r.EmailToRecipients,
+                        r.EmailCcRecipients,
+                        r.EmailBccRecipients,
+                        r.EmailSubject,
+                        r.EmailBodyTemplate,
+                        r.EnableFileSave,
+                        r.FileSavePath,
+                        r.MaxRowsPerSheet,
+                        DistributionDestinations = r.DistributionDestinations.Select(d => new
+                        {
+                            d.Id,
+                            d.DestinationType,
+                            d.EmailTo,
+                            d.EmailCc,
+                            d.EmailBcc,
+                            d.EmailSubject,
+                            d.EmailBody,
+                            d.FilePath,
+                            d.IsActive
+                        }).ToList()
+                    })
+                    .FirstOrDefaultAsync();
 
+                if (report is null)
+                    return NotFound(new { message = "Report not found." });
 
-
+                return Json(report);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportsGetById), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching the report." });
+            }
+        }
 
 
 
@@ -729,272 +1072,69 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin, Support")]
         public async Task<IActionResult> ReportsCreate([FromBody] CreateReportRequest req)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-            //    return Forbid();
-
-            // ── Validation ──────────────────────────────────────────────────
-            if (string.IsNullOrWhiteSpace(req.Name))
-                return BadRequest(new { message = "Report name is required." });
-            if (req.DbConnectionConfigId <= 0)
-                return BadRequest(new { message = "Please select a valid database." });
-            if (string.IsNullOrWhiteSpace(req.Query))
-                return BadRequest(new { message = "Report query is required." });
-            if (string.IsNullOrWhiteSpace(req.OutputFileName))
-                return BadRequest(new { message = "Output file name is required." });
-
-            var validFormats = new[] { "csv", "excel" };
-            if (!validFormats.Contains(req.OutputFormat?.ToLowerInvariant() ?? ""))
-                return BadRequest(new { message = "Output format must be CSV or Excel." });
-
-            var validExecTypes = new[] { "single", "scheduled" };
-            if (!validExecTypes.Contains(req.ExecutionType?.ToLowerInvariant() ?? ""))
-                return BadRequest(new { message = "Execution type must be Single or Scheduled." });
-
-            // Verify database exists
-            var dbConfig = await _db.DbConnectionConfigs.FindAsync(req.DbConnectionConfigId);
-            if (dbConfig is null)
-                return BadRequest(new { message = "Selected database configuration not found." });
-
-            // ── Build report entity ─────────────────────────────────────────
-            var report = new Report
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                Name = req.Name.Trim(),
-                DbConnectionConfigId = req.DbConnectionConfigId,
-                Query = req.Query.Trim(),
-                OutputFileName = req.OutputFileName.Trim(),
-                OutputFormat = req.OutputFormat!.ToLowerInvariant(),
-                ExecutionType = req.ExecutionType!.ToLowerInvariant(),
-                CreatedByUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
-                Status = "active",
-                MaxRowsPerSheet = req.MaxRowsPerSheet
-            };
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                //    return Forbid();
 
-            // Single run configuration
-            if (report.ExecutionType == "single")
-            {
-                report.SingleRunTiming = req.SingleRunTiming?.ToLowerInvariant() ?? "immediately";
-                if (report.SingleRunTiming == "scheduled")
-                {
-                    if (!req.SingleRunDateTime.HasValue)
-                        return BadRequest(new { message = "Scheduled date and time is required for single run." });
-                    report.SingleRunDateTime = req.SingleRunDateTime.Value.ToUniversalTime();
-                    report.NextRunDate = report.SingleRunDateTime;
-                }
-            }
-            // Scheduled run configuration
-            else
-            {
-                var validFreqs = new[] { "daily", "weekly", "monthly", "custom_dates", "custom_recurring" };
-                if (!validFreqs.Contains(req.ScheduleFrequency?.ToLowerInvariant() ?? ""))
-                    return BadRequest(new { message = "Invalid schedule frequency." });
+                // ── Validation ──────────────────────────────────────────────────
+                if (string.IsNullOrWhiteSpace(req.Name))
+                    return BadRequest(new { message = "Report name is required." });
+                if (req.DbConnectionConfigId <= 0)
+                    return BadRequest(new { message = "Please select a valid database." });
+                if (string.IsNullOrWhiteSpace(req.Query))
+                    return BadRequest(new { message = "Report query is required." });
+                if (string.IsNullOrWhiteSpace(req.OutputFileName))
+                    return BadRequest(new { message = "Output file name is required." });
 
-                report.ScheduleFrequency = req.ScheduleFrequency!.ToLowerInvariant();
-
-                switch (report.ScheduleFrequency)
-                {
-                    case "daily":
-                        report.ScheduleTime = req.ScheduleTime;
-                        break;
-                    case "weekly":
-                        if (req.ScheduleDaysOfWeek is null || req.ScheduleDaysOfWeek.Count == 0)
-                            return BadRequest(new { message = "At least one day of week is required." });
-                        report.ScheduleDaysOfWeek = System.Text.Json.JsonSerializer.Serialize(req.ScheduleDaysOfWeek);
-                        report.ScheduleTime = req.ScheduleTime;
-                        break;
-                    case "monthly":
-                        if (!req.ScheduleDayOfMonth.HasValue || req.ScheduleDayOfMonth.Value < 1 || req.ScheduleDayOfMonth.Value > 31)
-                            return BadRequest(new { message = "Valid day of month (1-31) is required." });
-                        report.ScheduleDayOfMonth = req.ScheduleDayOfMonth;
-                        report.ScheduleTime = req.ScheduleTime;
-                        break;
-                    case "custom_dates":
-                        if (req.ScheduleCustomDates is null || req.ScheduleCustomDates.Count == 0)
-                            return BadRequest(new { message = "At least one custom date is required." });
-                        report.ScheduleCustomDates = System.Text.Json.JsonSerializer.Serialize(req.ScheduleCustomDates);
-                        break;
-                    case "custom_recurring":
-                        if (req.ScheduleCustomRecurring is null || req.ScheduleCustomRecurring.Count == 0)
-                            return BadRequest(new { message = "At least one custom recurring schedule is required." });
-                        report.ScheduleCustomRecurring = System.Text.Json.JsonSerializer.Serialize(req.ScheduleCustomRecurring);
-                        break;
-                }
-            }
-
-            // ── Distribution Configuration ───────────────────────────────────
-            report.EnableEmailDistribution = req.EnableEmailDistribution;
-            if (report.EnableEmailDistribution)
-            {
-                report.EmailToRecipients = req.EmailToRecipients;
-                report.EmailCcRecipients = req.EmailCcRecipients;
-                report.EmailBccRecipients = req.EmailBccRecipients;
-                report.EmailSubject = req.EmailSubject;
-                report.EmailBodyTemplate = req.EmailBodyTemplate;
-            }
-
-            report.EnableFileSave = req.EnableFileSave;
-            if (report.EnableFileSave)
-            {
-                report.FileSavePath = req.FileSavePath;
-            }
-
-            // Distribution destinations
-            if (req.DistributionDestinations?.Any() == true)
-            {
-                foreach (var dest in req.DistributionDestinations)
-                {
-                    report.DistributionDestinations.Add(new ReportDistributionDestination
-                    {
-                        DestinationType = dest.DestinationType.ToLowerInvariant(),
-                        EmailTo = dest.EmailTo,
-                        EmailCc = dest.EmailCc,
-                        EmailBcc = dest.EmailBcc,
-                        EmailSubject = dest.EmailSubject,
-                        EmailBody = dest.EmailBody,
-                        FilePath = dest.FilePath,
-
-                        IsActive = dest.IsActive
-                    });
-                }
-            }
-
-            _db.Reports.Add(report);
-            await _db.SaveChangesAsync();
-
-            // ── Audit log ─────────────────────────────────────────────────────
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - CREATED REPORT '{report.Name}'",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-
-            await _reportScheduler.ScheduleReportAsync(report);
-
-            // ── Return response with distribution data ─────────────────────────
-            return Json(new
-            {
-                report.Id,
-                report.Name,
-                report.DbConnectionConfigId,
-                report.Query,
-                report.OutputFileName,
-                report.OutputFormat,
-                report.ExecutionType,
-                report.SingleRunTiming,
-                report.SingleRunDateTime,
-                report.ScheduleFrequency,
-                report.ScheduleDaysOfWeek,
-                report.ScheduleDayOfMonth,
-                report.ScheduleCustomDates,
-                report.ScheduleCustomRecurring,
-                report.ScheduleTime,
-                report.Status,
-                report.LastRunDate,
-                report.NextRunDate,
-                report.CreatedAt,
-                report.UpdatedAt,
-                report.LastErrorMessage,
-                // Distribution
-                report.EnableEmailDistribution,
-                report.EmailToRecipients,
-                report.EmailCcRecipients,
-                report.EmailBccRecipients,
-                report.EmailSubject,
-                report.EmailBodyTemplate,
-                report.EnableFileSave,
-                report.FileSavePath,
-                report.MaxRowsPerSheet,
-                DistributionDestinations = report.DistributionDestinations.Select(d => new
-                {
-                    d.Id,
-                    d.DestinationType,
-                    d.EmailTo,
-                    d.EmailCc,
-                    d.EmailBcc,
-                    d.EmailSubject,
-                    d.EmailBody,
-                    d.FilePath,
-                    //d.MaxRowsPerSheet,
-                    d.IsActive
-                }).ToList()
-            });
-        }
-
-
-
-
-        [HttpPost]
-        [Route("Dashboard/Reports/Update/{id:int}")]
-        [Authorize(Roles = "Super Admin,Admin,Support")]
-        public async Task<IActionResult> ReportsUpdate(int id, [FromBody] UpdateReportRequest req)
-        {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-            //    return Forbid();
-
-            var report = await _db.Reports
-                .Include(r => r.DistributionDestinations)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (report is null)
-                return NotFound(new { message = "Report not found." });
-
-            // ── Update basic fields ─────────────────────────────────────────
-            if (!string.IsNullOrWhiteSpace(req.Name))
-                report.Name = req.Name.Trim();
-            if (req.DbConnectionConfigId.HasValue && req.DbConnectionConfigId.Value > 0)
-            {
-                var dbConfig = await _db.DbConnectionConfigs.FindAsync(req.DbConnectionConfigId.Value);
-                if (dbConfig is null)
-                    return BadRequest(new { message = "Selected database configuration not found." });
-                report.DbConnectionConfigId = req.DbConnectionConfigId.Value;
-            }
-
-            if (!string.IsNullOrWhiteSpace(req.Query))
-                report.Query = req.Query.Trim();
-            if (!string.IsNullOrWhiteSpace(req.OutputFileName))
-                report.OutputFileName = req.OutputFileName.Trim();
-            if (!string.IsNullOrWhiteSpace(req.OutputFormat))
-            {
                 var validFormats = new[] { "csv", "excel" };
-                if (!validFormats.Contains(req.OutputFormat.ToLowerInvariant()))
+                if (!validFormats.Contains(req.OutputFormat?.ToLowerInvariant() ?? ""))
                     return BadRequest(new { message = "Output format must be CSV or Excel." });
-                report.OutputFormat = req.OutputFormat.ToLowerInvariant();
-            }
 
-            // ── Update execution type and schedule ──────────────────────────
-            if (!string.IsNullOrWhiteSpace(req.ExecutionType))
-            {
                 var validExecTypes = new[] { "single", "scheduled" };
-                if (!validExecTypes.Contains(req.ExecutionType.ToLowerInvariant()))
+                if (!validExecTypes.Contains(req.ExecutionType?.ToLowerInvariant() ?? ""))
                     return BadRequest(new { message = "Execution type must be Single or Scheduled." });
 
-                report.ExecutionType = req.ExecutionType.ToLowerInvariant();
+                // ── Validate record date offset ─────────────────────────────────
+                if (req.ReportRecordDateOffsetDays < -365 || req.ReportRecordDateOffsetDays > 365)
+                    return BadRequest(new { message = "Report record date offset must be between -365 and 365 days." });
 
-                // Reset schedule fields
-                report.SingleRunTiming = null;
-                report.SingleRunDateTime = null;
-                report.ScheduleFrequency = null;
-                report.ScheduleDaysOfWeek = null;
-                report.ScheduleDayOfMonth = null;
-                report.ScheduleCustomDates = null;
-                report.ScheduleCustomRecurring = null;
-                report.ScheduleTime = null;
-                report.NextRunDate = null;
 
+                // Verify database exists
+                var dbConfig = await _db.DbConnectionConfigs.FindAsync(req.DbConnectionConfigId);
+                if (dbConfig is null)
+                    return BadRequest(new { message = "Selected database configuration not found." });
+
+                // ── Build report entity ─────────────────────────────────────────
+                var report = new Report
+                {
+                    Name = req.Name.Trim(),
+                    DbConnectionConfigId = req.DbConnectionConfigId,
+                    Query = req.Query.Trim(),
+                    OutputFileName = req.OutputFileName.Trim(),
+                    OutputFormat = req.OutputFormat!.ToLowerInvariant(),
+                    ExecutionType = req.ExecutionType!.ToLowerInvariant(),
+                    CreatedByUserId = userId,
+                    Status = "active",
+                    MaxRowsPerSheet = req.MaxRowsPerSheet,
+                    ReportRecordDateOffsetDays = req.ReportRecordDateOffsetDays
+                };
+
+                // Single run configuration
                 if (report.ExecutionType == "single")
                 {
                     report.SingleRunTiming = req.SingleRunTiming?.ToLowerInvariant() ?? "immediately";
-                    if (report.SingleRunTiming == "scheduled" && req.SingleRunDateTime.HasValue)
+                    if (report.SingleRunTiming == "scheduled")
                     {
+                        if (!req.SingleRunDateTime.HasValue)
+                            return BadRequest(new { message = "Scheduled date and time is required for single run." });
                         report.SingleRunDateTime = req.SingleRunDateTime.Value.ToUniversalTime();
                         report.NextRunDate = report.SingleRunDateTime;
                     }
                 }
+                // Scheduled run configuration
                 else
                 {
                     var validFreqs = new[] { "daily", "weekly", "monthly", "custom_dates", "custom_recurring" };
@@ -1032,143 +1172,418 @@ namespace ARS.Controllers
                             break;
                     }
                 }
-            }
 
-            // ── Update Distribution ───────────────────────────────────────────
-            report.EnableEmailDistribution = req.EnableEmailDistribution ?? false;
-            report.EmailToRecipients = report.EnableEmailDistribution ? req.EmailToRecipients : null;
-            report.EmailCcRecipients = report.EnableEmailDistribution ? req.EmailCcRecipients : null;
-            report.EmailBccRecipients = report.EnableEmailDistribution ? req.EmailBccRecipients : null;
-            report.EmailSubject = report.EnableEmailDistribution ? req.EmailSubject : null;
-            report.EmailBodyTemplate = report.EnableEmailDistribution ? req.EmailBodyTemplate : null;
-
-            report.EnableFileSave = req.EnableFileSave ?? false;
-            report.FileSavePath = report.EnableFileSave ? req.FileSavePath : null;
-            // In the update section:
-            if (req.MaxRowsPerSheet.HasValue)
-                report.MaxRowsPerSheet = req.MaxRowsPerSheet.Value;
-            else
-                report.MaxRowsPerSheet = null; // Allow clearing
-
-            // Replace destinations
-            _db.ReportDistributionDestinations.RemoveRange(report.DistributionDestinations);
-
-            if (req.DistributionDestinations?.Any() == true)
-            {
-                foreach (var dest in req.DistributionDestinations)
+                // ── Distribution Configuration ───────────────────────────────────
+                report.EnableEmailDistribution = req.EnableEmailDistribution;
+                if (report.EnableEmailDistribution)
                 {
-                    report.DistributionDestinations.Add(new ReportDistributionDestination
-                    {
-                        DestinationType = dest.DestinationType.ToLowerInvariant(),
-                        EmailTo = dest.EmailTo,
-                        EmailCc = dest.EmailCc,
-                        EmailBcc = dest.EmailBcc,
-                        EmailSubject = dest.EmailSubject,
-                        EmailBody = dest.EmailBody,
-                        FilePath = dest.FilePath,
-
-                        IsActive = dest.IsActive
-                    });
+                    report.EmailToRecipients = req.EmailToRecipients;
+                    report.EmailCcRecipients = req.EmailCcRecipients;
+                    report.EmailBccRecipients = req.EmailBccRecipients;
+                    report.EmailSubject = req.EmailSubject;
+                    report.EmailBodyTemplate = req.EmailBodyTemplate;
                 }
-            }
 
-            report.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-
-            // ── Audit log ─────────────────────────────────────────────────────
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - UPDATED REPORT ID: {id} - '{report.Name}'",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-
-            await _reportScheduler.ScheduleReportAsync(report);
-
-            // ── Return response with distribution data ─────────────────────────
-            return Json(new
-            {
-                report.Id,
-                report.Name,
-                report.DbConnectionConfigId,
-                report.Query,
-                report.OutputFileName,
-                report.OutputFormat,
-                report.ExecutionType,
-                report.SingleRunTiming,
-                report.SingleRunDateTime,
-                report.ScheduleFrequency,
-                report.ScheduleDaysOfWeek,
-                report.ScheduleDayOfMonth,
-                report.ScheduleCustomDates,
-                report.ScheduleCustomRecurring,
-                report.ScheduleTime,
-                report.Status,
-                report.LastRunDate,
-                report.NextRunDate,
-                report.CreatedAt,
-                report.UpdatedAt,
-                report.LastErrorMessage,
-                // Distribution
-                report.EnableEmailDistribution,
-                report.EmailToRecipients,
-                report.EmailCcRecipients,
-                report.EmailBccRecipients,
-                report.EmailSubject,
-                report.EmailBodyTemplate,
-                report.EnableFileSave,
-                report.FileSavePath,
-                report.MaxRowsPerSheet,
-                DistributionDestinations = report.DistributionDestinations.Select(d => new
+                report.EnableFileSave = req.EnableFileSave;
+                if (report.EnableFileSave)
                 {
-                    d.Id,
-                    d.DestinationType,
-                    d.EmailTo,
-                    d.EmailCc,
-                    d.EmailBcc,
-                    d.EmailSubject,
-                    d.EmailBody,
-                    d.FilePath,
-                    d.IsActive
-                }).ToList()
-            });
+                    report.FileSavePath = req.FileSavePath;
+                }
+
+                // Distribution destinations
+                if (req.DistributionDestinations?.Any() == true)
+                {
+                    foreach (var dest in req.DistributionDestinations)
+                    {
+                        report.DistributionDestinations.Add(new ReportDistributionDestination
+                        {
+                            DestinationType = dest.DestinationType.ToLowerInvariant(),
+                            EmailTo = dest.EmailTo,
+                            EmailCc = dest.EmailCc,
+                            EmailBcc = dest.EmailBcc,
+                            EmailSubject = dest.EmailSubject,
+                            EmailBody = dest.EmailBody,
+                            FilePath = dest.FilePath,
+
+                            IsActive = dest.IsActive
+                        });
+                    }
+                }
+
+                _db.Reports.Add(report);
+                await _db.SaveChangesAsync();
+
+                // ── Audit log ─────────────────────────────────────────────────────
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - CREATED REPORT '{report.Name}'",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl,
+                    userEmail: email,
+                    action: "Create Report",
+                    resourceName: report.Name
+                );
+
+                try
+                {
+                    await _reportScheduler.ScheduleReportAsync(report);
+                }
+                catch (Exception ex)
+                {
+                    // The report itself was saved fine — a scheduling hiccup shouldn't
+                    // fail the create call, but we do want to know about it.
+                    ErrorLogger.LogError(ex, source: $"{nameof(ReportsCreate)}.ScheduleReportAsync",
+                        userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                        additionalInfo: $"Report id: {report.Id}");
+                }
+
+                // ── Return response with distribution data ─────────────────────────
+                return Json(new
+                {
+                    report.Id,
+                    report.Name,
+                    report.DbConnectionConfigId,
+                    report.Query,
+                    report.OutputFileName,
+                    report.OutputFormat,
+                    report.ExecutionType,
+                    report.SingleRunTiming,
+                    report.SingleRunDateTime,
+                    report.ScheduleFrequency,
+                    report.ScheduleDaysOfWeek,
+                    report.ScheduleDayOfMonth,
+                    report.ScheduleCustomDates,
+                    report.ScheduleCustomRecurring,
+                    report.ScheduleTime,
+                    report.Status,
+                    report.LastRunDate,
+                    report.NextRunDate,
+                    report.CreatedAt,
+                    report.UpdatedAt,
+                    report.LastErrorMessage,
+                    // Distribution
+                    report.EnableEmailDistribution,
+                    report.EmailToRecipients,
+                    report.EmailCcRecipients,
+                    report.EmailBccRecipients,
+                    report.EmailSubject,
+                    report.EmailBodyTemplate,
+                    report.EnableFileSave,
+                    report.FileSavePath,
+                    report.MaxRowsPerSheet,
+                    DistributionDestinations = report.DistributionDestinations.Select(d => new
+                    {
+                        d.Id,
+                        d.DestinationType,
+                        d.EmailTo,
+                        d.EmailCc,
+                        d.EmailBcc,
+                        d.EmailSubject,
+                        d.EmailBody,
+                        d.FilePath,
+                        //d.MaxRowsPerSheet,
+                        d.IsActive
+                    }).ToList(),
+                    report.ReportRecordDateOffsetDays
+
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportsCreate), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while creating the report." });
+            }
         }
 
+        [HttpPost]
+        [Route("Dashboard/Reports/Update/{id:int}")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
+        public async Task<IActionResult> ReportsUpdate(int id, [FromBody] UpdateReportRequest req)
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                //    return Forbid();
 
+                var report = await _db.Reports
+                    .Include(r => r.DistributionDestinations)
+                    .FirstOrDefaultAsync(r => r.Id == id);
 
+                if (report is null)
+                    return NotFound(new { message = "Report not found." });
+
+                // ── Update basic fields ─────────────────────────────────────────
+                if (!string.IsNullOrWhiteSpace(req.Name))
+                    report.Name = req.Name.Trim();
+                if (req.DbConnectionConfigId.HasValue && req.DbConnectionConfigId.Value > 0)
+                {
+                    var dbConfig = await _db.DbConnectionConfigs.FindAsync(req.DbConnectionConfigId.Value);
+                    if (dbConfig is null)
+                        return BadRequest(new { message = "Selected database configuration not found." });
+                    report.DbConnectionConfigId = req.DbConnectionConfigId.Value;
+                }
+
+                if (!string.IsNullOrWhiteSpace(req.Query))
+                    report.Query = req.Query.Trim();
+                if (!string.IsNullOrWhiteSpace(req.OutputFileName))
+                    report.OutputFileName = req.OutputFileName.Trim();
+                if (!string.IsNullOrWhiteSpace(req.OutputFormat))
+                {
+                    var validFormats = new[] { "csv", "excel" };
+                    if (!validFormats.Contains(req.OutputFormat.ToLowerInvariant()))
+                        return BadRequest(new { message = "Output format must be CSV or Excel." });
+                    report.OutputFormat = req.OutputFormat.ToLowerInvariant();
+                }
+
+                // ── Update execution type and schedule ──────────────────────────
+                if (!string.IsNullOrWhiteSpace(req.ExecutionType))
+                {
+                    var validExecTypes = new[] { "single", "scheduled" };
+                    if (!validExecTypes.Contains(req.ExecutionType.ToLowerInvariant()))
+                        return BadRequest(new { message = "Execution type must be Single or Scheduled." });
+
+                    report.ExecutionType = req.ExecutionType.ToLowerInvariant();
+
+                    // Reset schedule fields
+                    report.SingleRunTiming = null;
+                    report.SingleRunDateTime = null;
+                    report.ScheduleFrequency = null;
+                    report.ScheduleDaysOfWeek = null;
+                    report.ScheduleDayOfMonth = null;
+                    report.ScheduleCustomDates = null;
+                    report.ScheduleCustomRecurring = null;
+                    report.ScheduleTime = null;
+                    report.NextRunDate = null;
+
+                    if (report.ExecutionType == "single")
+                    {
+                        report.SingleRunTiming = req.SingleRunTiming?.ToLowerInvariant() ?? "immediately";
+                        if (report.SingleRunTiming == "scheduled" && req.SingleRunDateTime.HasValue)
+                        {
+                            report.SingleRunDateTime = req.SingleRunDateTime.Value.ToUniversalTime();
+                            report.NextRunDate = report.SingleRunDateTime;
+                        }
+                    }
+                    else
+                    {
+                        var validFreqs = new[] { "daily", "weekly", "monthly", "custom_dates", "custom_recurring" };
+                        if (!validFreqs.Contains(req.ScheduleFrequency?.ToLowerInvariant() ?? ""))
+                            return BadRequest(new { message = "Invalid schedule frequency." });
+
+                        report.ScheduleFrequency = req.ScheduleFrequency!.ToLowerInvariant();
+
+                        switch (report.ScheduleFrequency)
+                        {
+                            case "daily":
+                                report.ScheduleTime = req.ScheduleTime;
+                                break;
+                            case "weekly":
+                                if (req.ScheduleDaysOfWeek is null || req.ScheduleDaysOfWeek.Count == 0)
+                                    return BadRequest(new { message = "At least one day of week is required." });
+                                report.ScheduleDaysOfWeek = System.Text.Json.JsonSerializer.Serialize(req.ScheduleDaysOfWeek);
+                                report.ScheduleTime = req.ScheduleTime;
+                                break;
+                            case "monthly":
+                                if (!req.ScheduleDayOfMonth.HasValue || req.ScheduleDayOfMonth.Value < 1 || req.ScheduleDayOfMonth.Value > 31)
+                                    return BadRequest(new { message = "Valid day of month (1-31) is required." });
+                                report.ScheduleDayOfMonth = req.ScheduleDayOfMonth;
+                                report.ScheduleTime = req.ScheduleTime;
+                                break;
+                            case "custom_dates":
+                                if (req.ScheduleCustomDates is null || req.ScheduleCustomDates.Count == 0)
+                                    return BadRequest(new { message = "At least one custom date is required." });
+                                report.ScheduleCustomDates = System.Text.Json.JsonSerializer.Serialize(req.ScheduleCustomDates);
+                                break;
+                            case "custom_recurring":
+                                if (req.ScheduleCustomRecurring is null || req.ScheduleCustomRecurring.Count == 0)
+                                    return BadRequest(new { message = "At least one custom recurring schedule is required." });
+                                report.ScheduleCustomRecurring = System.Text.Json.JsonSerializer.Serialize(req.ScheduleCustomRecurring);
+                                break;
+                        }
+                    }
+                }
+
+                // ── Update Distribution ───────────────────────────────────────────
+                report.EnableEmailDistribution = req.EnableEmailDistribution ?? false;
+                report.EmailToRecipients = report.EnableEmailDistribution ? req.EmailToRecipients : null;
+                report.EmailCcRecipients = report.EnableEmailDistribution ? req.EmailCcRecipients : null;
+                report.EmailBccRecipients = report.EnableEmailDistribution ? req.EmailBccRecipients : null;
+                report.EmailSubject = report.EnableEmailDistribution ? req.EmailSubject : null;
+                report.EmailBodyTemplate = report.EnableEmailDistribution ? req.EmailBodyTemplate : null;
+
+                report.EnableFileSave = req.EnableFileSave ?? false;
+                report.FileSavePath = report.EnableFileSave ? req.FileSavePath : null;
+                // In the update section:
+                if (req.MaxRowsPerSheet.HasValue)
+                    report.MaxRowsPerSheet = req.MaxRowsPerSheet.Value;
+                else
+                    report.MaxRowsPerSheet = null; // Allow clearing
+
+                // Replace destinations
+                _db.ReportDistributionDestinations.RemoveRange(report.DistributionDestinations);
+
+                if (req.DistributionDestinations?.Any() == true)
+                {
+                    foreach (var dest in req.DistributionDestinations)
+                    {
+                        report.DistributionDestinations.Add(new ReportDistributionDestination
+                        {
+                            DestinationType = dest.DestinationType.ToLowerInvariant(),
+                            EmailTo = dest.EmailTo,
+                            EmailCc = dest.EmailCc,
+                            EmailBcc = dest.EmailBcc,
+                            EmailSubject = dest.EmailSubject,
+                            EmailBody = dest.EmailBody,
+                            FilePath = dest.FilePath,
+
+                            IsActive = dest.IsActive
+                        });
+                    }
+                }
+
+                if (req.ReportRecordDateOffsetDays.HasValue)
+                {
+                    if (req.ReportRecordDateOffsetDays.Value < -365 || req.ReportRecordDateOffsetDays.Value > 365)
+                        return BadRequest(new { message = "Report record date offset must be between -365 and 365 days." });
+                    report.ReportRecordDateOffsetDays = req.ReportRecordDateOffsetDays.Value;
+                }
+
+                report.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+
+                // ── Audit log ─────────────────────────────────────────────────────
+                await AuditLogger.LogAsync(
+                     db: _db,
+                     eventName: $"{email} - UPDATED REPORT ID: {id} - '{report.Name}'",
+                     userId: userId,
+                     ipAddress: ipAddress,
+                     pageUrl: pageUrl,
+                     userEmail: email,
+                     action: "Update Report",
+                     resourceName: report.Name
+                 );
+
+                try
+                {
+                    await _reportScheduler.ScheduleReportAsync(report);
+                }
+                catch (Exception ex)
+                {
+                    ErrorLogger.LogError(ex, source: $"{nameof(ReportsUpdate)}.ScheduleReportAsync",
+                        userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                        additionalInfo: $"Report id: {id}");
+                }
+
+                // ── Return response with distribution data ─────────────────────────
+                return Json(new
+                {
+                    report.Id,
+                    report.Name,
+                    report.DbConnectionConfigId,
+                    report.Query,
+                    report.OutputFileName,
+                    report.OutputFormat,
+                    report.ExecutionType,
+                    report.SingleRunTiming,
+                    report.SingleRunDateTime,
+                    report.ScheduleFrequency,
+                    report.ScheduleDaysOfWeek,
+                    report.ScheduleDayOfMonth,
+                    report.ScheduleCustomDates,
+                    report.ScheduleCustomRecurring,
+                    report.ScheduleTime,
+                    report.Status,
+                    report.LastRunDate,
+                    report.NextRunDate,
+                    report.CreatedAt,
+                    report.UpdatedAt,
+                    report.LastErrorMessage,
+                    // Distribution
+                    report.EnableEmailDistribution,
+                    report.EmailToRecipients,
+                    report.EmailCcRecipients,
+                    report.EmailBccRecipients,
+                    report.EmailSubject,
+                    report.EmailBodyTemplate,
+                    report.EnableFileSave,
+                    report.FileSavePath,
+                    report.MaxRowsPerSheet,
+                    DistributionDestinations = report.DistributionDestinations.Select(d => new
+                    {
+                        d.Id,
+                        d.DestinationType,
+                        d.EmailTo,
+                        d.EmailCc,
+                        d.EmailBcc,
+                        d.EmailSubject,
+                        d.EmailBody,
+                        d.FilePath,
+                        d.IsActive
+                    }).ToList(),
+                    report.ReportRecordDateOffsetDays
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportsUpdate), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while updating the report." });
+            }
+        }
 
         [HttpPost]
         [Route("Dashboard/Reports/Delete/{id:int}")]
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> ReportsDelete(int id)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-            //    return Forbid();
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                //    return Forbid();
 
-            var report = await _db.Reports.FindAsync(id);
-            if (report is null)
-                return NotFound(new { message = "Report not found." });
+                var report = await _db.Reports.FindAsync(id);
+                if (report is null)
+                    return NotFound(new { message = "Report not found." });
 
-            _db.Reports.Remove(report);
-            await _db.SaveChangesAsync();
+                _db.Reports.Remove(report);
+                await _db.SaveChangesAsync();
 
-            // ── Audit log ─────────────────────────────────────────────────────
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - DELETED REPORT ID: {id} - '{report.Name}'",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
+                // ── Audit log ─────────────────────────────────────────────────────
+                await AuditLogger.LogAsync(
+                    db: _db,
+                    eventName: $"{email} - DELETED REPORT ID: {id} - '{report.Name}'",
+                    userId: userId,
+                    ipAddress: ipAddress,
+                    pageUrl: pageUrl,
+                    userEmail: email,
+                    action: "Delete Report",
+                    resourceName: report.Name
+                );
 
-            await _reportScheduler.UnscheduleReportAsync(id);
-            return Json(new { message = "Report deleted." });
+                try
+                {
+                    await _reportScheduler.UnscheduleReportAsync(id);
+                }
+                catch (Exception ex)
+                {
+                    ErrorLogger.LogError(ex, source: $"{nameof(ReportsDelete)}.UnscheduleReportAsync",
+                        userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                        additionalInfo: $"Report id: {id}");
+                }
+
+                return Json(new { message = "Report deleted." });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportsDelete), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while deleting the report." });
+            }
         }
 
         [HttpPost]
@@ -1176,60 +1591,283 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin, Support")]
         public async Task<IActionResult> ReportsUpdateStatus(int id, [FromBody] UpdateReportStatusRequest req)
         {
-            var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
-            //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
-            //    return Forbid();
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var currentRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+                //if (currentRole.Equals("Support", StringComparison.OrdinalIgnoreCase))
+                //    return Forbid();
 
-            var allowed = new[] { "active", "inactive" };
-            if (!allowed.Contains(req.Status?.ToLowerInvariant() ?? ""))
-                return BadRequest(new { message = "Status must be 'active' or 'inactive'." });
+                var allowed = new[] { "active", "inactive" };
+                if (!allowed.Contains(req.Status?.ToLowerInvariant() ?? ""))
+                    return BadRequest(new { message = "Status must be 'active' or 'inactive'." });
 
-            var report = await _db.Reports.FindAsync(id);
-            if (report is null)
-                return NotFound(new { message = "Report not found." });
+                var report = await _db.Reports.FindAsync(id);
+                if (report is null)
+                    return NotFound(new { message = "Report not found." });
 
-            report.Status = req.Status!.ToLowerInvariant();
-            report.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
+                report.Status = req.Status!.ToLowerInvariant();
+                report.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
 
-            // ── Audit log ─────────────────────────────────────────────────────
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            await AuditLogger.LogAsync(
-                db: _db,
-                eventName: $"{email} - UPDATED REPORT ID: {id} STATUS TO {report.Status}",
-                userId: userId,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                pageUrl: HttpContext.Request.Path
-            );
-            if (report.Status == "active")
-                await _reportScheduler.ScheduleReportAsync(report);
-            else
-                await _reportScheduler.UnscheduleReportAsync(report.Id);
-            return Json(new { report.Id, report.Status });
+                // ── Audit log ─────────────────────────────────────────────────────
+                await AuditLogger.LogAsync(
+                        db: _db,
+                        eventName: $"{email} - UPDATED REPORT ID: {id} STATUS TO {report.Status}",
+                        userId: userId,
+                        ipAddress: ipAddress,
+                        pageUrl: pageUrl,
+                        userEmail: email,
+                        action: "Update Report Status",
+                        resourceName: report.Name
+                    );
+
+                try
+                {
+                    if (report.Status == "active")
+                        await _reportScheduler.ScheduleReportAsync(report);
+                    else
+                        await _reportScheduler.UnscheduleReportAsync(report.Id);
+                }
+                catch (Exception ex)
+                {
+                    ErrorLogger.LogError(ex, source: $"{nameof(ReportsUpdateStatus)}.Scheduler",
+                        userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                        additionalInfo: $"Report id: {id}, status: {report.Status}");
+                }
+
+                return Json(new { report.Id, report.Status });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportsUpdateStatus), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while updating the report status." });
+            }
         }
-
-
-
 
         // ══════════════════════════════════════════════════════════════════════
         // REPORTS VIEWS
         // ══════════════════════════════════════════════════════════════════════
 
-
         [Route("Dashboard/Reports/{reportName}")]
         [Authorize(Roles = "Super Admin,Admin,Support")]
         public async Task<IActionResult> ReportDetail(string reportName)
         {
-            var report = await _db.Reports
-                .Include(r => r.DbConnectionConfig)
-                .FirstOrDefaultAsync(r => r.Name == reportName);
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var report = await _db.Reports
+                    .Where(r => r.Name == reportName)
+                    .Select(r => new
+                    {
+                        r.Id,
+                        r.Name,
+                        r.DbConnectionConfigId,
+                        r.Query,
+                        r.MaxRowsPerSheet
+                    })
+                    .FirstOrDefaultAsync();
 
-            if (report is null)
-                return NotFound();
+                if (report is null)
+                    return NotFound();
 
-            return View("~/Views/Dashboard/ReportDetail.cshtml", report);
+                var dbConfig = await _db.DbConnectionConfigs
+                    .Where(c => c.Id == report.DbConnectionConfigId)
+                    .Select(c => new { c.Id, c.DatabaseName })
+                    .FirstOrDefaultAsync();
+
+                var viewModel = new ReportDetailViewModel
+                {
+                    ReportId = report.Id,
+                    Name = report.Name,
+                    DbConnectionConfigId = report.DbConnectionConfigId,
+                    Query = report.Query,
+                    MaxRowsPerSheet = report.MaxRowsPerSheet,
+                    DbConfigId = dbConfig?.Id,
+                    DbConfigDatabaseName = dbConfig?.DatabaseName
+                };
+
+                return View("~/Views/Dashboard/ReportDetail.cshtml", viewModel);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportDetail), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report name: {reportName}");
+                return StatusCode(500, "An unexpected error occurred while loading the report.");
+            }
         }
+
+
+        // ── Loaded on "View More" click: everything else on the Report row ──
+        [HttpGet]
+        [Route("Dashboard/Reports/{reportName}/Details")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
+        public async Task<IActionResult> ReportDetailExtra(string reportName)
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var extra = await _db.Reports
+                    .Where(r => r.Name == reportName)
+                    .Select(r => new
+                    {
+                        r.OutputFileName,
+                        r.OutputFormat,
+                        r.Status,
+                        r.LastRunDate,
+                        r.NextRunDate,
+                        r.CreatedAt,
+                        r.UpdatedAt,
+                        r.CreatedByUserId,
+                        r.LastErrorMessage
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (extra is null)
+                    return NotFound();
+
+                return Json(extra);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportDetailExtra), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report name: {reportName}");
+                return StatusCode(500, "An unexpected error occurred while loading report details.");
+            }
+        }
+
+        // ── Loaded on "View Full Details" click: full DB connection config (minus the encrypted string) ──
+        [HttpGet]
+        [Route("Dashboard/Reports/{reportName}/DbConfig")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
+        public async Task<IActionResult> ReportDbConfig(string reportName)
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var report = await _db.Reports
+                    .Where(r => r.Name == reportName)
+                    .Select(r => new { r.DbConnectionConfigId })
+                    .FirstOrDefaultAsync();
+
+                if (report is null)
+                    return NotFound();
+
+                var dbConfig = await _db.DbConnectionConfigs
+                    .Where(c => c.Id == report.DbConnectionConfigId)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.DatabaseType,
+                        c.Host,
+                        c.Port,
+                        c.DatabaseName,
+                        c.Username,
+                        c.Status,
+                        c.CreatedAt,
+                        c.UpdatedAt
+                        // NOTE: EncryptedConnectionString intentionally excluded
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (dbConfig is null)
+                    return NotFound();
+
+                return Json(dbConfig);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportDbConfig), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report name: {reportName}");
+                return StatusCode(500, "An unexpected error occurred while loading the database connection.");
+            }
+        }
+
+        // ── Loaded on "Load Schedule" click ──
+        [HttpGet]
+        [Route("Dashboard/Reports/{reportName}/Schedule")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
+        public async Task<IActionResult> ReportSchedule(string reportName)
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var schedule = await _db.Reports
+                    .Where(r => r.Name == reportName)
+                    .Select(r => new
+                    {
+                        r.ExecutionType,
+                        r.SingleRunTiming,
+                        r.SingleRunDateTime,
+                        r.ScheduleFrequency,
+                        r.ScheduleDaysOfWeek,
+                        r.ScheduleDayOfMonth,
+                        r.ScheduleCustomDates,
+                        r.ScheduleCustomRecurring,
+                        r.ScheduleTime
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (schedule is null)
+                    return NotFound();
+
+                return Json(schedule);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportSchedule), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report name: {reportName}");
+                return StatusCode(500, "An unexpected error occurred while loading the schedule.");
+            }
+        }
+
+        // ── Loaded on "Load Distribution" click ──
+        [HttpGet]
+        [Route("Dashboard/Reports/{reportName}/Distributions")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
+        public async Task<IActionResult> ReportDistributions(string reportName)
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var report = await _db.Reports
+                    .Where(r => r.Name == reportName)
+                    .Select(r => new { r.Id })
+                    .FirstOrDefaultAsync();
+
+                if (report is null)
+                    return NotFound();
+
+                var destinations = await _db.ReportDistributionDestinations
+                    .Where(d => d.ReportId == report.Id)
+                    .Select(d => new
+                    {
+                        d.Id,
+                        d.DestinationType,
+                        d.EmailTo,
+                        d.EmailCc,
+                        d.EmailBcc,
+                        d.EmailSubject,
+                        d.FilePath,
+                        d.MaxRowsPerSheet,
+                        d.IsActive
+                    })
+                    .ToListAsync();
+
+                return Json(destinations);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportDistributions), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report name: {reportName}");
+                return StatusCode(500, "An unexpected error occurred while loading distributions.");
+            }
+        }
+
+
+
+
 
 
 
@@ -1241,81 +1879,177 @@ namespace ARS.Controllers
         [HttpGet]
         [Route("Dashboard/Reports/Executions/{reportId:int}")]
         [Authorize(Roles = "Super Admin,Admin,Support")]
-        public async Task<IActionResult> GetExecutions(int reportId)
+        public async Task<IActionResult> GetExecutions(
+    int reportId,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 25,
+    [FromQuery] string? status = null,
+    [FromQuery] DateTime? dateFrom = null,
+    [FromQuery] DateTime? dateTo = null)
         {
-            var report = await _db.Reports.FindAsync(reportId);
-            if (report is null)
-                return NotFound(new { message = "Report not found." });
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var report = await _db.Reports.FindAsync(reportId);
+                if (report is null)
+                    return NotFound(new { message = "Report not found." });
 
-            var executions = await _db.Executions
-                .Where(e => e.ReportId == reportId)
-                .OrderByDescending(e => e.StartTime)
-                .Select(e => new
+                if (page < 1) page = 1;
+                if (pageSize < 1 || pageSize > 100) pageSize = 25;
+
+                var query = _db.Executions.Where(e => e.ReportId == reportId);
+
+                if (!string.IsNullOrWhiteSpace(status))
+                {
+                    var s = status.ToLowerInvariant();
+                    query = query.Where(e => e.ExecutionStatus == s);
+                }
+
+                if (dateFrom.HasValue)
+                {
+                    var from = dateFrom.Value.Date;
+                    query = query.Where(e => e.StartTime >= from);
+                }
+
+                if (dateTo.HasValue)
+                {
+                    var to = dateTo.Value.Date.AddDays(1).AddTicks(-1);
+                    query = query.Where(e => e.StartTime <= to);
+                }
+
+                var totalCount = await query.CountAsync();
+
+                var raw = await query
+                    .OrderByDescending(e => e.StartTime)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(e => new
+                    {
+                        e.Id,
+                        e.ReportId,
+                        e.ExecutionStatus,
+                        e.ExecutionLogsPath,
+                        e.ExecutionResultPath,
+                        e.EmailsSentJson,
+                        e.FilesSentJson,
+                        e.StartTime,
+                        e.EndTime,
+                        e.RowCount,
+                        e.ErrorMessage,
+                        e.CreatedAt
+                    })
+                    .ToListAsync();
+
+                var data = raw.Select(e => new
                 {
                     e.Id,
                     e.ReportId,
                     e.ExecutionStatus,
                     e.ExecutionLogsPath,
                     e.ExecutionResultPath,
-                    e.EmailsSentJson,
-                    e.FilesSentJson,
+                    EmailsSent = !string.IsNullOrEmpty(e.EmailsSentJson)
+                        ? System.Text.Json.JsonSerializer.Deserialize<List<object>>(e.EmailsSentJson)
+                        : new List<object>(),
+                    FilesSent = !string.IsNullOrEmpty(e.FilesSentJson)
+                        ? System.Text.Json.JsonSerializer.Deserialize<List<object>>(e.FilesSentJson)
+                        : new List<object>(),
                     e.StartTime,
                     e.EndTime,
                     e.RowCount,
                     e.ErrorMessage,
                     e.CreatedAt
-                })
-                .ToListAsync();
+                });
 
-            var result = executions.Select(e => new
+                var totalPages = totalCount == 0 ? 1 : (totalCount + pageSize - 1) / pageSize;
+
+                return Json(new
+                {
+                    data,
+                    total = totalCount,
+                    page,
+                    pageSize,
+                    totalPages
+                });
+            }
+            catch (Exception ex)
             {
-                e.Id,
-                e.ReportId,
-                e.ExecutionStatus,
-                e.ExecutionLogsPath,
-                e.ExecutionResultPath,
-                EmailsSent = !string.IsNullOrEmpty(e.EmailsSentJson)
-                    ? System.Text.Json.JsonSerializer.Deserialize<List<object>>(e.EmailsSentJson)
-                    : new List<object>(),
-                FilesSent = !string.IsNullOrEmpty(e.FilesSentJson)
-                    ? System.Text.Json.JsonSerializer.Deserialize<List<object>>(e.FilesSentJson)
-                    : new List<object>(),
-                e.StartTime,
-                e.EndTime,
-                e.RowCount,
-                e.ErrorMessage,
-                e.CreatedAt
-            });
-
-            return Json(result);
+                ErrorLogger.LogError(ex, source: nameof(GetExecutions), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report id: {reportId}");
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching executions." });
+            }
         }
+
+
+
+        [Route("Dashboard/Reports/{reportName}/Executions")]
+        [Authorize(Roles = "Super Admin,Admin,Support")]
+        public async Task<IActionResult> ReportExecutionsView(string reportName)
+        {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
+            {
+                var report = await _db.Reports
+                    .FirstOrDefaultAsync(r => r.Name == reportName);
+
+                if (report is null)
+                    return NotFound();
+
+                return View("~/Views/Dashboard/ReportExecutions.cshtml", report);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportExecutionsView), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report name: {reportName}");
+                return StatusCode(500, "An unexpected error occurred while loading executions.");
+            }
+        }
+
+
+
+
+
+
+
+
+
+
 
         [HttpPost]
         [Route("Dashboard/Reports/Executions/Create")]
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> CreateExecution([FromBody] CreateExecutionRequest req)
         {
-            var report = await _db.Reports.FindAsync(req.ReportId);
-            if (report is null)
-                return NotFound(new { message = "Report not found." });
-
-            var execution = new Execution
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                ReportId = req.ReportId,
-                ExecutionStatus = "running",
-                StartTime = DateTime.UtcNow
-            };
+                var report = await _db.Reports.FindAsync(req.ReportId);
+                if (report is null)
+                    return NotFound(new { message = "Report not found." });
 
-            _db.Executions.Add(execution);
-            await _db.SaveChangesAsync();
+                var execution = new Execution
+                {
+                    ReportId = req.ReportId,
+                    ExecutionStatus = "running",
+                    StartTime = DateTime.UtcNow
+                };
 
-            return Json(new
+                _db.Executions.Add(execution);
+                await _db.SaveChangesAsync();
+
+                return Json(new
+                {
+                    execution.Id,
+                    execution.ReportId,
+                    execution.ExecutionStatus,
+                    execution.StartTime
+                });
+            }
+            catch (Exception ex)
             {
-                execution.Id,
-                execution.ReportId,
-                execution.ExecutionStatus,
-                execution.StartTime
-            });
+                ErrorLogger.LogError(ex, source: nameof(CreateExecution), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Report id: {req?.ReportId}");
+                return StatusCode(500, new { message = "An unexpected error occurred while creating the execution." });
+            }
         }
 
         [HttpPost]
@@ -1323,50 +2057,68 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin")]
         public async Task<IActionResult> UpdateExecution(int id, [FromBody] UpdateExecutionRequest req)
         {
-            var execution = await _db.Executions.FindAsync(id);
-            if (execution is null)
-                return NotFound(new { message = "Execution not found." });
-
-            if (!string.IsNullOrWhiteSpace(req.ExecutionStatus))
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                var validStatuses = new[] { "running", "completed", "failed" };
-                if (!validStatuses.Contains(req.ExecutionStatus.ToLowerInvariant()))
-                    return BadRequest(new { message = "Status must be running, completed, or failed." });
-                execution.ExecutionStatus = req.ExecutionStatus.ToLowerInvariant();
+                var execution = await _db.Executions.FindAsync(id);
+                if (execution is null)
+                    return NotFound(new { message = "Execution not found." });
+
+                if (!string.IsNullOrWhiteSpace(req.ExecutionStatus))
+                {
+                    var validStatuses = new[] { "running", "completed", "failed" };
+                    if (!validStatuses.Contains(req.ExecutionStatus.ToLowerInvariant()))
+                        return BadRequest(new { message = "Status must be running, completed, or failed." });
+                    execution.ExecutionStatus = req.ExecutionStatus.ToLowerInvariant();
+                }
+
+                if (req.EndTime.HasValue)
+                    execution.EndTime = req.EndTime.Value;
+
+                if (!string.IsNullOrWhiteSpace(req.ExecutionLogsPath))
+                    execution.ExecutionLogsPath = req.ExecutionLogsPath;
+
+                if (!string.IsNullOrWhiteSpace(req.ExecutionResultPath))
+                    execution.ExecutionResultPath = req.ExecutionResultPath;
+
+                if (req.EmailsSent != null)
+                    execution.EmailsSentJson = System.Text.Json.JsonSerializer.Serialize(req.EmailsSent);
+
+                if (req.FilesSent != null)
+                    execution.FilesSentJson = System.Text.Json.JsonSerializer.Serialize(req.FilesSent);
+
+                if (req.RowCount.HasValue)
+                    execution.RowCount = req.RowCount.Value;
+
+                if (!string.IsNullOrWhiteSpace(req.ErrorMessage))
+                    execution.ErrorMessage = req.ErrorMessage;
+
+                await _db.SaveChangesAsync();
+
+                return Json(new
+                {
+                    execution.Id,
+                    execution.ExecutionStatus,
+                    execution.StartTime,
+                    execution.EndTime,
+                    execution.RowCount
+                });
             }
-
-            if (req.EndTime.HasValue)
-                execution.EndTime = req.EndTime.Value;
-
-            if (!string.IsNullOrWhiteSpace(req.ExecutionLogsPath))
-                execution.ExecutionLogsPath = req.ExecutionLogsPath;
-
-            if (!string.IsNullOrWhiteSpace(req.ExecutionResultPath))
-                execution.ExecutionResultPath = req.ExecutionResultPath;
-
-            if (req.EmailsSent != null)
-                execution.EmailsSentJson = System.Text.Json.JsonSerializer.Serialize(req.EmailsSent);
-
-            if (req.FilesSent != null)
-                execution.FilesSentJson = System.Text.Json.JsonSerializer.Serialize(req.FilesSent);
-
-            if (req.RowCount.HasValue)
-                execution.RowCount = req.RowCount.Value;
-
-            if (!string.IsNullOrWhiteSpace(req.ErrorMessage))
-                execution.ErrorMessage = req.ErrorMessage;
-
-            await _db.SaveChangesAsync();
-
-            return Json(new
+            catch (Exception ex)
             {
-                execution.Id,
-                execution.ExecutionStatus,
-                execution.StartTime,
-                execution.EndTime,
-                execution.RowCount
-            });
+                ErrorLogger.LogError(ex, source: nameof(UpdateExecution), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Execution id: {id}");
+                return StatusCode(500, new { message = "An unexpected error occurred while updating the execution." });
+            }
         }
+
+
+   
+
+
+
+
+
 
         // ══════════════════════════════════════════════════════════════════════
         // EXECUTION LOGS API
@@ -1377,109 +2129,136 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin,Admin,Support")]
         public IActionResult GetExecutionLogs([FromQuery] string path, [FromQuery] bool download = false)
         {
-            if (string.IsNullOrWhiteSpace(path))
-                return BadRequest(new { message = "Log path is required." });
-
-            // Security: prevent directory traversal
-            var fullPath = Path.GetFullPath(path);
-            var reportsRoot = Path.GetFullPath(GlobalVariables.reportsDirectory);
-
-            if (!fullPath.StartsWith(reportsRoot, StringComparison.OrdinalIgnoreCase))
-                return NotFound(new { message = "Root folder not found." });
-
-            if (!System.IO.File.Exists(fullPath+".logs"))
-                return NotFound(new { message = "Log file not found." });
-
-            if (download)
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                var fileName = Path.GetFileName(fullPath + ".logs");
-                var mimeType = "text/plain";
-                return PhysicalFile(fullPath + ".logs", mimeType, fileName);
+                if (string.IsNullOrWhiteSpace(path))
+                    return BadRequest(new { message = "Log path is required." });
+
+                // Security: prevent directory traversal
+                var fullPath = Path.GetFullPath(path);
+                var reportsRoot = Path.GetFullPath(GlobalVariables.reportsDirectory);
+
+                if (!fullPath.StartsWith(reportsRoot, StringComparison.OrdinalIgnoreCase))
+                    return NotFound(new { message = "Root folder not found." });
+
+                if (!System.IO.File.Exists(fullPath + ".logs"))
+                    return NotFound(new { message = "Log file not found." });
+
+                if (download)
+                {
+                    var fileName = Path.GetFileName(fullPath + ".logs");
+                    var mimeType = "text/plain";
+                    return PhysicalFile(fullPath + ".logs", mimeType, fileName);
+                }
+
+                // Return file content as plain text
+                var content = System.IO.File.ReadAllText(fullPath + ".logs");
+                return Content(content, "text/plain");
             }
-
-            // Return file content as plain text
-            var content = System.IO.File.ReadAllText(fullPath + ".logs");
-            return Content(content, "text/plain");
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(GetExecutionLogs), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Log path: {path}");
+                return StatusCode(500, new { message = "An unexpected error occurred while reading the log file." });
+            }
         }
-
 
         [HttpGet]
         [Route("Dashboard/Reports/GetTodayStats")]
         [Authorize(Roles = "Super Admin,Admin,Support")]
         public async Task<IActionResult> ReportsGetTodayStats()
         {
-            var todayUtc = DateTime.UtcNow.Date;
-            var tomorrowUtc = todayUtc.AddDays(1);
-
-            // ── Today counts (from executions) ────────────────────────────────────
-            var completedToday = await _db.Executions
-                .CountAsync(e => e.ExecutionStatus == "completed"
-                              && e.StartTime >= todayUtc
-                              && e.StartTime < tomorrowUtc);
-
-            var failedToday = await _db.Executions
-                .CountAsync(e => e.ExecutionStatus == "failed"
-                              && e.StartTime >= todayUtc
-                              && e.StartTime < tomorrowUtc);
-
-            var scheduledToday = await _db.Reports
-                .CountAsync(r => r.Status == "active"
-                              && r.NextRunDate.HasValue
-                              && r.NextRunDate.Value >= todayUtc
-                              && r.NextRunDate.Value < tomorrowUtc);
-
-            // ── Overall counts ────────────────────────────────────────────────────
-            var totalReports = await _db.Reports.CountAsync();
-            var totalCompleted = await _db.Executions.CountAsync(e => e.ExecutionStatus == "completed");
-            var totalFailed = await _db.Executions.CountAsync(e => e.ExecutionStatus == "failed");
-            var totalScheduled = await _db.Reports.CountAsync(r => r.Status == "active" && r.NextRunDate.HasValue);
-
-            return Json(new
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                // today
-                scheduledToday,
-                completedToday,
-                failedToday,
-                // overall
-                total = totalReports,
-                totalScheduled,
-                totalCompleted,
-                totalFailed
-            });
-        }
+                var todayUtc = DateTime.UtcNow.Date;
+                var tomorrowUtc = todayUtc.AddDays(1);
 
+                // ── Today counts (from executions) ────────────────────────────────────
+                var completedToday = await _db.Executions
+                    .CountAsync(e => e.ExecutionStatus == "completed"
+                                  && e.StartTime >= todayUtc
+                                  && e.StartTime < tomorrowUtc);
+
+                var failedToday = await _db.Executions
+                    .CountAsync(e => e.ExecutionStatus == "failed"
+                                  && e.StartTime >= todayUtc
+                                  && e.StartTime < tomorrowUtc);
+
+                var scheduledToday = await _db.Reports
+                    .CountAsync(r => r.Status == "active"
+                                  && r.NextRunDate.HasValue
+                                  && r.NextRunDate.Value >= todayUtc
+                                  && r.NextRunDate.Value < tomorrowUtc);
+
+                // ── Overall counts ────────────────────────────────────────────────────
+                var totalReports = await _db.Reports.CountAsync();
+                var totalCompleted = await _db.Executions.CountAsync(e => e.ExecutionStatus == "completed");
+                var totalFailed = await _db.Executions.CountAsync(e => e.ExecutionStatus == "failed");
+                var totalScheduled = await _db.Reports.CountAsync(r => r.Status == "active" && r.NextRunDate.HasValue);
+
+                return Json(new
+                {
+                    // today
+                    scheduledToday,
+                    completedToday,
+                    failedToday,
+                    // overall
+                    total = totalReports,
+                    totalScheduled,
+                    totalCompleted,
+                    totalFailed
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(ReportsGetTodayStats), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
+                return StatusCode(500, new { message = "An unexpected error occurred while fetching today's stats." });
+            }
+        }
 
         [HttpGet]
         [Route("Dashboard/Reports/Executions/Download/{executionId:int}")]
         [Authorize(Roles = "Super Admin,Admin,Support")]
         public async Task<IActionResult> DownloadExecutionResult(int executionId)
         {
-            var execution = await _db.Executions.FindAsync(executionId);
-            if (execution is null)
-                return NotFound(new { message = "Execution not found." });
-
-            if (string.IsNullOrEmpty(execution.ExecutionResultPath))
-                return NotFound(new { message = "No result file for this execution." });
-
-            var fullPath = Path.GetFullPath(execution.ExecutionResultPath);
-            var reportsRoot = Path.GetFullPath(GlobalVariables.reportsDirectory);
-
-            if (!fullPath.StartsWith(reportsRoot, StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-
-            if (!System.IO.File.Exists(fullPath))
-                return NotFound("Result file not found on disk.");
-
-            var fileName = Path.GetFileName(fullPath);
-            var ext = Path.GetExtension(fullPath).ToLowerInvariant();
-            var mimeType = ext switch
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+            try
             {
-                ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                ".csv" => "text/csv",
-                _ => "application/octet-stream"
-            };
+                var execution = await _db.Executions.FindAsync(executionId);
+                if (execution is null)
+                    return NotFound(new { message = "Execution not found." });
 
-            return PhysicalFile(fullPath, mimeType, fileName);
+                if (string.IsNullOrEmpty(execution.ExecutionResultPath))
+                    return NotFound(new { message = "No result file for this execution." });
+
+                var fullPath = Path.GetFullPath(execution.ExecutionResultPath);
+                var reportsRoot = Path.GetFullPath(GlobalVariables.reportsDirectory);
+
+                if (!fullPath.StartsWith(reportsRoot, StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+
+                if (!System.IO.File.Exists(fullPath))
+                    return NotFound("Result file not found on disk.");
+
+                var fileName = Path.GetFileName(fullPath);
+                var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+                var mimeType = ext switch
+                {
+                    ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    ".csv" => "text/csv",
+                    _ => "application/octet-stream"
+                };
+
+                return PhysicalFile(fullPath, mimeType, fileName);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError(ex, source: nameof(DownloadExecutionResult), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl,
+                    additionalInfo: $"Execution id: {executionId}");
+                return StatusCode(500, new { message = "An unexpected error occurred while downloading the result." });
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -1498,6 +2277,8 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin")]
         public IActionResult EncryptString([FromBody] EncryptorRequest req)
         {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+
             if (string.IsNullOrWhiteSpace(req?.Input))
                 return BadRequest(new { message = "Input text is required." });
 
@@ -1508,6 +2289,7 @@ namespace ARS.Controllers
             }
             catch (Exception ex)
             {
+                ErrorLogger.LogError(ex, source: nameof(EncryptString), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
                 return BadRequest(new { success = false, message = $"Encryption failed: {ex.Message}" });
             }
         }
@@ -1517,6 +2299,8 @@ namespace ARS.Controllers
         [Authorize(Roles = "Super Admin")]
         public IActionResult DecryptString([FromBody] EncryptorRequest req)
         {
+            var (userId, email, ipAddress, pageUrl) = GetRequestContext();
+
             if (string.IsNullOrWhiteSpace(req?.Input))
                 return BadRequest(new { message = "Input text is required." });
 
@@ -1527,10 +2311,9 @@ namespace ARS.Controllers
             }
             catch (Exception ex)
             {
+                ErrorLogger.LogError(ex, source: nameof(DecryptString), userEmail: email, userId: userId, ipAddress: ipAddress, pageUrl: pageUrl);
                 return BadRequest(new { success = false, message = $"Decryption failed: {ex.Message}" });
             }
         }
-
-
     }
 }
