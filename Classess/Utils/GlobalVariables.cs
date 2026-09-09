@@ -14,8 +14,8 @@
             Path.Combine(
                 reportsDirectoryBase,
                 DateTime.Now.Year.ToString(),
-                DateTime.Now.ToString("MMMM")     // "August"
-                //DateTime.Now.Day.ToString("D2")     // "27" (zero-padded)
+                DateTime.Now.ToString("MMMM"),     // "August"
+                DateTime.Now.Day.ToString("D2")     // "27" (zero-padded)
             );
     }
 }
