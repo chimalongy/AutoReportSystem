@@ -50,27 +50,7 @@ builder.Services.AddScoped<DownloadLinkGenerator>();
 builder.Services.AddHostedService<ReportSchedulerStartup>();
 
 
-// ── Database ──────────────────────────────────────────────────────────────
-//builder.Services.AddDbContext<AppDbContext>(options =>
-//    options.UseNpgsql(
-//        builder.Configuration.GetConnectionString("DefaultConnection")
-//    ));
 
-//builder.Services.AddDbContext<AppDbContext>(options =>
-//{
-//    options.UseNpgsql(
-//        builder.Configuration.GetConnectionString("DefaultConnection"),
-//        npgsqlOptions =>
-//        {
-//            npgsqlOptions.CommandTimeout(300);
-//        });
-
-//    options.EnableDetailedErrors();
-
-
-//    options.EnableSensitiveDataLogging();
-
-//});
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
